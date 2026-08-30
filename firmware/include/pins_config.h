@@ -1,5 +1,5 @@
-#ifndef PIN_CONFIG_H
-#define PIN_CONFIG_H
+#ifndef PINS_CONFIG_H
+#define PINS_CONFIG_H
 
 // RFID RC522 - SPI
 #define RFID_CS_PIN 5
