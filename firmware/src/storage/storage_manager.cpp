@@ -1,6 +1,5 @@
 #include "../include/log_format.h"
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <string.h>
 
 namespace
@@ -46,7 +45,7 @@ namespace
 
 bool storage_init()
 {
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (!LittleFS.begin(true))
   {
     Serial.println("[storage] Echec montage LittleFS");
     return false;

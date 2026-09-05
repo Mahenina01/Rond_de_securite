@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <LittleFS.h>
 
 #define LOG_FIELD_TIMESTAMP_LEN 20
 #define LOG_FIELD_AGENT_LEN 5
@@ -48,12 +49,8 @@ void storage_build_log_id(const LogEntry &entry, char *out, size_t out_len);
 bool storage_is_space_low(uint8_t threshold_percent = LOG_SPACE_LOW_THRESHOLD_PERCENT);
 
 /**
- * @brief Libère de l'espace en supprimant les entrées LOG_STATUS_SENT
- *        (compaction du fichier). Cède la main périodiquement (yield)
- *        pour éviter un déclenchement du watchdog.
- * @warning Invalide tout line_index déjà capturé ailleurs (ex: envoi MQTT
- *          en cours) : à appeler uniquement hors publication active, et
- *          à suivre d'un nouvel appel à storage_find_by_status()
+ * @brief Libère de l'espace en supprimant les entrées LOG_STATUS_SENT.
+ *        Cède la main périodiquement (yield) pour éviter un déclenchement du watchdog.
  * @return true si la compaction a réussi
  */
 bool storage_reclaim_space();
