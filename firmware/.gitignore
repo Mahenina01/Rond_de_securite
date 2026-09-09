@@ -1,0 +1,8 @@
+# PlatformIO
+**/.pio/
+
+# VS Code
+**/.vscode/
+
+# Build
+**/build/
