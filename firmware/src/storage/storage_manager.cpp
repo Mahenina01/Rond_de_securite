@@ -45,7 +45,7 @@ namespace
 
 bool storage_init()
 {
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     Serial.println("[storage] Echec montage LittleFS");
     return false;

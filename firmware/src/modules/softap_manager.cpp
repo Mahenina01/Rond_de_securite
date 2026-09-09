@@ -9,9 +9,6 @@
 #include "log_format.h"
 #include "system_config.h"
 
-// Déclaration externe pour la réinitialisation du stockage si non incluse dans les headers
-extern bool storage_init(void);
-
 namespace
 {
 
@@ -125,6 +122,29 @@ void softap_start()
   const char *headerKeys[] = {"Cookie"};
   server.collectHeaders(headerKeys, 1);
 
+  // --- CAPTURE DES SONDES PORTAIL CAPTIF (Android, iOS/Mac, Windows) ---
+  auto handleCaptiveProbe = []()
+  {
+    if (isSessionValid())
+    {
+      server.sendHeader("Location", "/dashboard", true);
+    }
+    else
+    {
+      server.sendHeader("Location", "/", true);
+    }
+    server.send(302, "text/plain", "");
+  };
+
+  server.on("/generate_204", HTTP_GET, handleCaptiveProbe);
+  server.on("/gen_204", HTTP_GET, handleCaptiveProbe);
+  server.on("/hotspot-detect.html", HTTP_GET, handleCaptiveProbe);
+  server.on("/canonical.html", HTTP_GET, handleCaptiveProbe);
+  server.on("/connecttest.txt", HTTP_GET, handleCaptiveProbe);
+  server.on("/favicon.ico", HTTP_GET, handleCaptiveProbe);
+  server.on("/ncsi.txt", HTTP_GET, handleCaptiveProbe);
+  server.on("/library/test/success.html", HTTP_GET, handleCaptiveProbe);
+
   server.on("/", HTTP_GET, []()
             {
     if (isSessionValid()) {
@@ -167,17 +187,17 @@ void softap_start()
     } });
 
   // Toutes les routes suivantes exigent une session valide
-
   server.on("/dashboard", HTTP_GET, []()
             {
     if (!requireAuth()) return;
-    File file = LittleFS.open("/dashboard.html", "r");
-    if (!file) {
-      server.send(404, "text/plain", "Fichier introuvable");
-      return;
-    }
-    server.streamFile(file, "text/html");
-    file.close(); });
+    // Vérifie l'existence du fichier avant de tenter de l'ouvrir
+    if (LittleFS.exists("/dashboard.html")) {
+        File file = LittleFS.open("/dashboard.html", "r");
+        server.streamFile(file, "text/html");
+        file.close();
+    } else {
+        server.send(200, "text/html", "<html><body><h1>Dashboard PN-01</h1><p>Fichier dashboard.html non présent sur LittleFS.</p></body></html>");
+    } });
 
   server.on("/download", HTTP_GET, []()
             {
@@ -191,6 +211,32 @@ void softap_start()
     server.streamFile(file, "text/csv");
     file.close(); });
 
+  // Endpoint API pour fournir l'état en direct au tableau de bord
+  server.on("/api/status", HTTP_GET, []()
+            {
+    if (!requireAuth()) return;
+
+    size_t totalBytes = LittleFS.totalBytes();
+    size_t usedBytes = LittleFS.usedBytes();
+    int usedPercent = totalBytes > 0 ? (usedBytes * 100 / totalBytes) : 0;
+
+    uint32_t remainingMs = (SESSION_TIMEOUT_MS > millis()) ? (SESSION_TIMEOUT_MS - millis()) : 0;
+    uint32_t seconds = remainingMs / 1000;
+    char timeoutStr[10];
+    snprintf(timeoutStr, sizeof(timeoutStr), "%02u:%02u", (unsigned int)(seconds / 60), (unsigned int)(seconds % 60));
+
+    String json = "{";
+    json += "\"rtc\":\"30/08/2026 14:27:00\","; // TODO : implementer la récupération de l'heure RTC réelle
+    json += "\"battery\":78,";       // TODO : implementer la récupération de l'état réel de la batterie          
+    json += "\"timeout\":\"" + String(timeoutStr) + "\",";
+    json += "\"pending\":12,"; // TODO : implementer la récupération du nombre réel d'entrées en attente
+    json += "\"sent\":340,"; // TODO : implementer la récupération du nombre réel d'entrées envoyées
+    json += "\"failed\":3,"; // TODO : implementer la récupération du nombre réel d'entrées échouées
+    json += "\"used\":" + String(usedPercent);
+    json += "}";
+
+    server.send(200, "application/json", json); });
+
   server.on("/purge", HTTP_POST, []()
             {
     if (!requireAuth()) return;
@@ -202,11 +248,10 @@ void softap_start()
   server.on("/sync-rtc", HTTP_POST, []()
             {
     if (!requireAuth()) return;
-    // rtc_sync_from_string(...) a appeler ici avec la valeur recue en parametre.
     server.sendHeader("Location", "/dashboard", true);
     server.send(302, "text/plain", ""); });
 
-  // Redirection automatique pour les requêtes du portail captif (ex: /generate_204)
+  // Redirection automatique pour les requêtes inconnues du portail captif
   server.onNotFound([]()
                     {
     if (isSessionValid()) {

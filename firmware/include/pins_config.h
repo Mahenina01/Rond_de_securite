@@ -30,4 +30,7 @@
 // SIM7600E-H - Statut
 #define SIM_STATUS_PIN 32 // Lecture de l'état ON/OFF du module
 
+// Bouton poussoir
+#define BUTTON1_PIN 35 // Bouton poussoir (actif bas) pour réveil
+
 #endif
