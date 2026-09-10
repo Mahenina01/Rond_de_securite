@@ -2,14 +2,7 @@
 #include "hal/sim_manager.h"
 #include "system_config.h"
 #include <Arduino.h>
-
-// --- A confirmer avec le schema electrique HW (Sprint 2/3) ---
-#define SIM_UART_RX 26
-#define SIM_UART_TX 27
-#define SIM_PWRKEY_PIN 4
-#define SIM_PWRKEY_PULSE_MS 1000 // duree d'impulsion PWRKEY -- valeur indicative,
-                                 // A VERIFIER dans la datasheet exacte du SIM7600E-H
-#define SIM_BOOT_DELAY_MS 3000   // delai typique avant que le module reponde a AT
+#include "pins_config.h"
 
 static HardwareSerial simSerial(1); // UART1 dedie au module 4G
 static TinyGsm modem(simSerial);
@@ -36,7 +29,7 @@ bool sim_power_on()
     {
 
     case SimPowerState::IDLE:
-        simSerial.begin(115200, SERIAL_8N1, SIM_UART_RX, SIM_UART_TX);
+        simSerial.begin(115200, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
         pinMode(SIM_PWRKEY_PIN, OUTPUT);
         digitalWrite(SIM_PWRKEY_PIN, HIGH); // debut de l'impulsion PWRKEY
         powerStateStart = millis();

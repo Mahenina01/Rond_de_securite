@@ -15,7 +15,8 @@
 #define SIM_APN "internet"
 #define SIM_USER ""
 #define SIM_PASS ""
-
+#define SIM_PWRKEY_PULSE_MS 1000 // Durée de l'impulsion PWRKEY pour allumer le module SIM
+#define SIM_BOOT_DELAY_MS 3000   // Délai typique avant que le module ne réponde à AT
 #define SIM_NET_TIMEOUT_MS 15000
 
 // =============================================================================
