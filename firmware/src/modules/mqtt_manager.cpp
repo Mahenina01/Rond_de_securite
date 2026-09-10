@@ -1,5 +1,5 @@
-#include "./hal/mqtt_manager.h"
-#include "./hal/system_config.h"
+#include "hal/mqtt_manager.h"
+#include "system_config.h"
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -17,20 +17,25 @@ static char g_client_id[32];
 // Variables volatiles pour la gestion de l'ACK applicatif
 static volatile bool g_ack_received = false;
 static volatile uint32_t g_ack_target_id = 0;
-static bool     ackWaiting  = false;
-static uint32_t ackStartMs  = 0;
+static bool ackWaiting = false;
+static uint32_t ackStartMs = 0;
 /**
  * @brief Callback appelé à la réception d'un message MQTT
  */
-static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
+static void mqtt_callback(char *topic, byte *payload, unsigned int length)
+{
     // Vérification du topic d'ACK sans utiliser String
-    if (strcmp(topic, g_topic_ack) == 0) {
+    if (strcmp(topic, g_topic_ack) == 0)
+    {
         JsonDocument ackDoc;
         DeserializationError error = deserializeJson(ackDoc, payload, length);
 
-        if (!error && ackDoc.containsKey("id")) {
-            uint32_t received_id = ackDoc["id"];
-            if (received_id == g_ack_target_id) {
+        if (!error && ackDoc["id"].is<uint32_t>())
+        {
+            uint32_t received_id = ackDoc["id"].as<uint32_t>();
+
+            if (received_id == g_ack_target_id)
+            {
                 g_ack_received = true; // ACK validé pour le log courant
             }
         }
@@ -40,7 +45,8 @@ static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 /**
  * @brief Préparation des noms de topics avec snprintf C-style
  */
-static void init_topics() {
+static void init_topics()
+{
     snprintf(g_topic_data, sizeof(g_topic_data), MQTT_TOPIC_DATA_FMT, DEVICE_ID);
     snprintf(g_topic_ack, sizeof(g_topic_ack), MQTT_TOPIC_ACK_FMT, DEVICE_ID);
     snprintf(g_client_id, sizeof(g_client_id), "Boitier-%s", DEVICE_ID);
@@ -49,7 +55,8 @@ static void init_topics() {
 /**
  * @brief Connexion non-bloquante au Broker MQTT
  */
-bool mqtt_connect() {
+bool mqtt_connect()
+{
     init_topics();
 
     // Configuration SSL/TLS (Désactivation vérification certificat pour dev)
@@ -58,18 +65,20 @@ bool mqtt_connect() {
     mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
     mqttClient.setCallback(mqtt_callback);
 
-    if (mqttClient.connected()) {
+    if (mqttClient.connected())
+    {
         return true;
     }
 
-    // Tentative de connexion avec identifiants C-String
-    #ifdef MQTT_USER
+// Tentative de connexion avec identifiants C-String
+#ifdef MQTT_USER
     bool connected = mqttClient.connect(g_client_id, MQTT_USER, MQTT_PASS);
-    #else
+#else
     bool connected = mqttClient.connect(g_client_id);
-    #endif
+#endif
 
-    if (connected) {
+    if (connected)
+    {
         mqttClient.subscribe(g_topic_ack);
         return true;
     }
@@ -80,8 +89,10 @@ bool mqtt_connect() {
 /**
  * @brief Sérialisation JSON et publication du log sur MQTT
  */
-bool mqtt_publish_log(const LogEntry& entry) {
-    if (!mqttClient.connected()) {
+bool mqtt_publish_log(const LogEntry &entry)
+{
+    if (!mqttClient.connected())
+    {
         return false;
     }
 
@@ -91,17 +102,18 @@ bool mqtt_publish_log(const LogEntry& entry) {
 
     // Construction du document JSON sur la pile (ArduinoJson 7)
     JsonDocument doc;
-    doc["id"]            = entry.id;
-    doc["device_id"]     = DEVICE_ID;
-    doc["timestamp"]     = entry.timestamp_iso;
-    doc["id_agent"]      = entry.id_agent;
+    doc["id"] = entry.id;
+    doc["device_id"] = DEVICE_ID;
+    doc["timestamp"] = entry.timestamp_iso;
+    doc["id_agent"] = entry.id_agent;
     doc["id_checkpoint"] = entry.id_checkpoint;
 
     // Sérialisation dans un buffer local fixe
     char json_buffer[256];
     size_t bytes_written = serializeJson(doc, json_buffer, sizeof(json_buffer));
 
-    if (bytes_written == 0) {
+    if (bytes_written == 0)
+    {
         return false; // Erreur d'espace dans le buffer
     }
 
@@ -112,33 +124,39 @@ bool mqtt_publish_log(const LogEntry& entry) {
 /**
  * @brief Attente d'un ACK serveur de manière strictement NON-BLOQUANTE (millis)
  */
-bool mqtt_wait_ack(uint32_t timeout_ms) {
-    mqttClient.loop();   // traite la réception + le keepalive, à chaque appel
+bool mqtt_wait_ack(uint32_t timeout_ms)
+{
+    mqttClient.loop(); // traite la réception + le keepalive, à chaque appel
 
-    if (g_ack_received) {
+    if (g_ack_received)
+    {
         g_ack_received = false;
         ackWaiting = false;
-        return true;              // ACK reçu
+        return true; // ACK reçu
     }
 
-    if (!ackWaiting) {
+    if (!ackWaiting)
+    {
         ackStartMs = millis();
         ackWaiting = true;
     }
 
-    if (millis() - ackStartMs >= timeout_ms) {
+    if (millis() - ackStartMs >= timeout_ms)
+    {
         ackWaiting = false;
-        return false;             // timeout expiré
+        return false; // timeout expiré
     }
 
-    return false;                 // encore en attente : rappeler au prochain tour de loop()
+    return false; // encore en attente : rappeler au prochain tour de loop()
 }
 
 /**
  * @brief Déconnexion du broker MQTT
  */
-void mqtt_disconnect() {
-    if (mqttClient.connected()) {
+void mqtt_disconnect()
+{
+    if (mqttClient.connected())
+    {
         mqttClient.disconnect();
     }
 }

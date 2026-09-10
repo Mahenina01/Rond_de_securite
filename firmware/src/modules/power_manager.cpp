@@ -10,7 +10,7 @@ namespace
   // Masque des broches RTC-GPIO armées pour le réveil ext1.
   uint64_t wakeupPinMask()
   {
-    return (1ULL << RFID_IRQ_PIN) | (1ULL << BUTTON1_PIN);
+    return (1ULL << RFID_IRQ_PIN) | (1ULL << BTN_1_PIN);
   }
 
 } // namespace
@@ -20,7 +20,7 @@ void power_configure_wake_sources()
   // Assure que les broches ne sont pas isolées d'un precedent deep sleep
   // (l'ESP32 isole les RTC-GPIO par defaut pendant le sommeil).
   rtc_gpio_pullup_en((gpio_num_t)RFID_IRQ_PIN);
-  rtc_gpio_pullup_en((gpio_num_t)BUTTON1_PIN);
+  rtc_gpio_pullup_en((gpio_num_t)BTN_1_PIN);
 
   // ext1 : reveil si N'IMPORTE LAQUELLE des broches du masque passe a LOW.
   // Necessite un coeur ESP-IDF >= 5.0 (Arduino core >= 3.x) pour ANY_LOW ;
@@ -41,7 +41,7 @@ WakeReason power_get_wake_reason()
   uint64_t wakeMask = esp_sleep_get_ext1_wakeup_status();
 
   bool rfidTriggered = (wakeMask & (1ULL << RFID_IRQ_PIN)) != 0;
-  bool buttonTriggered = (wakeMask & (1ULL << BUTTON1_PIN)) != 0;
+  bool buttonTriggered = (wakeMask & (1ULL << BTN_1_PIN)) != 0;
 
   if (rfidTriggered)
     return WakeReason::RFID_DETECTED;
