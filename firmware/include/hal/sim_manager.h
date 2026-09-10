@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <TinyGsmClient.h>
-
+#include "pins_config.h"
 // Sequence de mise sous tension du modem (impulsion PWRKEY + attente boot).
 // Non-bloquant : renvoie false tant que la sequence n'est pas terminee,
 // true une fois le modem pret a repondre aux commandes AT.
