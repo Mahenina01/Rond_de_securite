@@ -19,14 +19,14 @@ namespace
   {
     uint32_t releaseAfterMs = *(uint32_t *)param;
     vTaskDelay(pdMS_TO_TICKS(releaseAfterMs));
-    digitalWrite(BUTTON1_PIN, HIGH); // relache (actif bas -> HIGH = relache)
+    digitalWrite(BTN_1_PIN, HIGH); // relache (actif bas -> HIGH = relache)
     vTaskDelete(nullptr);
   }
 
   void simulatePressThenReleaseAfter(uint32_t releaseAfterMs)
   {
-    pinMode(BUTTON1_PIN, OUTPUT);
-    digitalWrite(BUTTON1_PIN, LOW); // presse immediatement
+    pinMode(BTN_1_PIN, OUTPUT);
+    digitalWrite(BTN_1_PIN, LOW); // presse immediatement
 
     static uint32_t delayParam;
     delayParam = releaseAfterMs;
@@ -37,12 +37,12 @@ namespace
 
 void setUp(void)
 {
-  pinMode(BUTTON1_PIN, INPUT_PULLUP); // etat par defaut : non presse
+  pinMode(BTN_1_PIN, INPUT_PULLUP); // etat par defaut : non presse
 }
 
 void tearDown(void)
 {
-  pinMode(BUTTON1_PIN, INPUT_PULLUP); // restaure l'etat normal apres chaque test
+  pinMode(BTN_1_PIN, INPUT_PULLUP); // restaure l'etat normal apres chaque test
 }
 
 // =============================================================================
@@ -77,15 +77,15 @@ void test_set_cpu_frequency_applies_requested_value(void)
 
 void test_long_press_detected_when_held_past_threshold(void)
 {
-  simulatePressThenReleaseAfter(200);                  // maintenu 200 ms
-  bool result = power_is_long_press(BUTTON1_PIN, 100); // seuil 100 ms
+  simulatePressThenReleaseAfter(200);                // maintenu 200 ms
+  bool result = power_is_long_press(BTN_1_PIN, 100); // seuil 100 ms
   TEST_ASSERT_TRUE(result);
 }
 
 void test_short_press_not_detected_below_threshold(void)
 {
-  simulatePressThenReleaseAfter(30);                   // maintenu seulement 30 ms
-  bool result = power_is_long_press(BUTTON1_PIN, 100); // seuil 100 ms
+  simulatePressThenReleaseAfter(30);                 // maintenu seulement 30 ms
+  bool result = power_is_long_press(BTN_1_PIN, 100); // seuil 100 ms
   TEST_ASSERT_FALSE(result);
 }
 
@@ -93,7 +93,7 @@ void test_no_press_returns_false_immediately(void)
 {
   // BUTTON1_PIN reste HIGH (non presse) — pas de simulation lancee.
   unsigned long start = millis();
-  bool result = power_is_long_press(BUTTON1_PIN, 5000);
+  bool result = power_is_long_press(BTN_1_PIN, 5000);
   unsigned long elapsed = millis() - start;
 
   TEST_ASSERT_FALSE(result);
