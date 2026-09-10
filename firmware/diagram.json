@@ -1,36 +1,86 @@
 {
   "version": 1,
-  "author": "Pointeuse Mobile - Equipe FW",
   "editor": "wokwi",
+  "author": "Wokwi",
   "parts": [
     {
-      "type": "wokwi-esp32-devkit-v1",
-      "id": "esp",
-      "top": 0,
-      "left": 0,
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp1",
+      "top": 244.87,
+      "left": 561.77,
       "attrs": {}
     },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": 412.45, "left": 730.1, "attrs": {} },
+    { "type": "board-mfrc522", "id": "rfid1", "top": 60, "left": 512.64, "attrs": {} },
+    { "type": "wokwi-rgb-led", "id": "rgb1", "top": 354.65, "left": 11.1, "attrs": {} },
     {
-      "type": "board-mfrc522",
-      "id": "rfid1",
-      "top": -50,
-      "left": 250,
-      "attrs": { "uid": "" }
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 477.85,
+      "left": 386.2,
+      "attrs": { "volume": "0.1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 280.05,
+      "left": 10,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 222.45,
+      "left": 10,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 450.9,
+      "left": 143,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 470.65,
+      "left": 153.45,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 422.1,
+      "left": 143,
+      "attrs": { "value": "220" }
     }
   ],
   "connections": [
-    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
-    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-
-    [ "rfid1:3.3V", "esp:3V3", "red", [] ],
-    [ "rfid1:GND", "esp:GND.1", "black", [] ],
-
-    [ "rfid1:SDA",  "esp:D5",  "blue",   [] ],
-    [ "rfid1:RST",  "esp:D27", "orange", [] ],
-    [ "rfid1:SCK",  "esp:D18", "green",  [] ],
-    [ "rfid1:MISO", "esp:D19", "yellow", [] ],
-    [ "rfid1:MOSI", "esp:D23", "purple", [] ],
-    [ "rfid1:IRQ",  "esp:D34", "gray",   [] ]
+    [ "rfid1:SDA", "esp1:5", "red", [ "h-19.2", "v211.2" ] ],
+    [ "rfid1:MOSI", "esp1:17", "gold", [ "h-38.4", "v9.6" ] ],
+    [ "rfid1:MISO", "esp1:16", "green", [ "h-28.8", "v9.6" ] ],
+    [ "rfid1:RST", "esp1:4", "blue", [ "h-57.6", "v144", "h-9.6" ] ],
+    [ "rfid1:SCK", "esp1:18", "orange", [ "h-48", "v9.6" ] ],
+    [ "rfid1:3.3V", "esp1:3V3.1", "#8f4814", [ "h-9.6", "v105.6" ] ],
+    [ "rfid1:GND", "esp1:GND.1", "black", [ "h-67.2", "v307.2", "h0", "v28.8" ] ],
+    [ "rtc1:GND", "esp1:GND.4", "black", [ "h-38.4", "v48", "h-9.6" ] ],
+    [ "rtc1:SCL", "esp1:20", "green", [ "h-67.2", "v-9.8" ] ],
+    [ "rtc1:SDA", "esp1:21", "green", [ "h-57.6", "v-0.3" ] ],
+    [ "esp1:14", "r2:2", "cyan", [ "h0" ] ],
+    [ "esp1:7", "r3:2", "cyan", [ "h-28.85", "v96.3" ] ],
+    [ "esp1:15", "r1:2", "cyan", [ "h-9.65", "v76.8", "h-345.6", "v38.7" ] ],
+    [ "rgb1:B", "r3:1", "blue", [ "v0" ] ],
+    [ "rgb1:G", "r1:1", "limegreen", [ "v0" ] ],
+    [ "esp1:GND.2", "rgb1:COM", "black", [ "v-28.8", "h-432", "v163.6" ] ],
+    [ "esp1:5V", "rtc1:5V", "red", [ "h-9.65", "v48", "h163.2", "v-76.8", "h-9.6" ] ],
+    [ "esp1:GND.3", "bz1:2", "black", [ "h28.8", "v96" ] ],
+    [ "esp1:8", "bz1:1", "green", [ "h-19.25", "v192", "h-134.4" ] ],
+    [ "btn1:2.r", "esp1:12", "white", [ "h355.4", "v86.6" ] ],
+    [ "rgb1:R", "r2:1", "red", [ "v76.8", "h67.2", "v0" ] ],
+    [ "esp1:13", "btn2:2.r", "white", [ "h-153.65", "v-9.6" ] ],
+    [ "esp1:GND.2", "btn2:1.r", "violet", [ "v0", "h9.6", "v-48" ] ],
+    [ "btn1:1.r", "esp1:GND.2", "violet", [ "v0", "h48.2", "v-67.2", "h556.8", "v48" ] ]
   ],
   "dependencies": {}
 }

@@ -8,7 +8,6 @@
 #define RFID_SCK_PIN 18
 #define RFID_MISO_PIN 19
 #define RFID_MOSI_PIN 23
-
 #define RFID_IRQ_PIN 34
 
 // RTC - DS3231 (I2C)
@@ -19,18 +18,21 @@
 #define SIM_TX_PIN 17 // ESP32 TX2 -> RX module SIM
 #define SIM_RX_PIN 16 // ESP32 RX2 <- TX module SIM
 #define SIM_BAUDRATE 115200
-
-// SIM7600E-H - Contrôle alimentation (MOSFET P-Channel)
-#define SIM_POWER_ENABLE_PIN 25
-
-// SIM7600E-H - Contrôle du module
-#define SIM_PWRKEY_PIN 26
+#define SIM_POWER_ENABLE_PIN 25 // SIM7600E-H - Contrôle alimentation (MOSFET P-Channel)
+#define SIM_PWRKEY_PIN 26       // SIM7600E-H - Contrôle du module
 #define SIM_RESET_PIN 33
-
-// SIM7600E-H - Statut
+#define SIM_UART_NUM 2
 #define SIM_STATUS_PIN 32 // Lecture de l'état ON/OFF du module
 
 // Bouton poussoir
-#define BUTTON1_PIN 35 // Bouton poussoir (actif bas) pour réveil
+#define BTN_1_PIN 34
+#define BTN_2_PIN 35
+#define LED_RED_PIN 2
+#define LED_GREEN_PIN 0
+#define LED_BLUE_PIN 4
+#define BUZZER_PIN 4
+
+// Auto-maintien alimentation
+#define POWER_LATCH_PIN 27
 
 #endif
