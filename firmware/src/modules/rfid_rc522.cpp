@@ -21,7 +21,7 @@ namespace
     out[len * 2] = '\0';
   }
 
-} // namespace
+}
 
 bool RFID_Init(uint8_t ssPin, uint8_t rstPin, uint8_t irqPin,
                uint8_t sckPin, uint8_t misoPin, uint8_t mosiPin)

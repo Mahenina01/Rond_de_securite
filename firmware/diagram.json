@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "author": "Pointeuse Mobile - Equipe FW",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid1",
+      "top": -50,
+      "left": 250,
+      "attrs": { "uid": "" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+
+    [ "rfid1:3.3V", "esp:3V3", "red", [] ],
+    [ "rfid1:GND", "esp:GND.1", "black", [] ],
+
+    [ "rfid1:SDA",  "esp:D5",  "blue",   [] ],
+    [ "rfid1:RST",  "esp:D27", "orange", [] ],
+    [ "rfid1:SCK",  "esp:D18", "green",  [] ],
+    [ "rfid1:MISO", "esp:D19", "yellow", [] ],
+    [ "rfid1:MOSI", "esp:D23", "purple", [] ],
+    [ "rfid1:IRQ",  "esp:D34", "gray",   [] ]
+  ],
+  "dependencies": {}
+}
