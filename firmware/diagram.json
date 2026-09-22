@@ -6,7 +6,13 @@
     { "type": "board-esp32-devkit-c-v4", "id": "esp1", "top": 278.4, "left": 580.84, "attrs": {} },
     { "type": "wokwi-ds1307", "id": "rtc1", "top": 407.4, "left": 864.1, "attrs": {} },
     { "type": "board-mfrc522", "id": "rfid1", "top": 60, "left": 512.64, "attrs": {} },
-    { "type": "wokwi-rgb-led", "id": "rgb1", "top": 354.65, "left": 11.1, "attrs": {} },
+    {
+      "type": "wokwi-rgb-led",
+      "id": "rgb1",
+      "top": 359.2,
+      "left": 10.7,
+      "attrs": { "common": "cathode" }
+    },
     {
       "type": "wokwi-buzzer",
       "id": "bz1",
@@ -51,16 +57,16 @@
     }
   ],
   "connections": [
+    [ "esp1:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp1:RX", "$serialMonitor:TX", "", [] ],
     [ "rfid1:SDA", "esp1:5", "#8f4814", [ "h-19.6", "v167.75", "h201.6", "v124.8" ] ],
     [ "rfid1:SCK", "esp1:18", "orange", [ "h-48", "v100.55", "h268.4", "v172.8" ] ],
     [ "rfid1:3.3V", "esp1:3V3.1", "#8f4814", [ "h-9.6", "v105.6" ] ],
     [ "rfid1:GND", "esp1:GND.1", "black", [ "h-67.2", "h-0.4", "v-24.25" ] ],
     [ "rtc1:GND", "esp1:GND.4", "black", [ "h-38.4", "v48", "h-9.6" ] ],
     [ "rtc1:SDA", "esp1:21", "green", [ "h-57.6", "v-0.3" ] ],
-    [ "esp1:7", "r3:2", "cyan", [ "h-28.85", "v96.3" ] ],
     [ "rgb1:B", "r3:1", "blue", [ "v0" ] ],
     [ "rgb1:G", "r1:1", "limegreen", [ "v0" ] ],
-    [ "esp1:GND.2", "rgb1:COM", "black", [ "v-48", "h-432", "v149.45" ] ],
     [ "esp1:GND.3", "bz1:2", "black", [ "h28.8", "v96" ] ],
     [ "esp1:8", "bz1:1", "green", [ "h-19.25", "v192", "h-134.4" ] ],
     [ "rgb1:R", "r2:1", "red", [ "v76.8", "h67.2", "v0" ] ],
@@ -73,13 +79,14 @@
     [ "esp1:27", "rfid1:RST", "gold", [ "h-105.45", "v-240" ] ],
     [ "esp1:3V3", "rfid1:3.3V", "red", [ "h-95.85", "v-134.4" ] ],
     [ "rtc1:GND", "esp1:GND.3", "black", [ "h-163.2", "v0" ] ],
-    [ "esp1:3V3", "rtc1:5V", "red", [ "h-9.45", "v-57.6", "h249.6", "v211.2" ] ],
+    [ "esp1:5V", "rtc1:5V", "red", [ "h-9.45", "v-57.6", "h249.6", "v211.2" ] ],
     [ "esp1:35", "rfid1:IRQ", "green", [ "h-182.25", "v-220.8" ] ],
     [ "r2:2", "esp1:13", "red", [ "v0" ] ],
-    [ "esp1:12", "r1:2", "limegreen", [ "v9.6", "h-383.65" ] ],
+    [ "esp1:12", "r1:2", "limegreen", [ "v-9.6", "h-383.65" ] ],
     [ "esp1:14", "r3:2", "blue", [ "v9.6", "h-383.65" ] ],
     [ "esp1:25", "btn1:2.r", "cyan", [ "h-508.45" ] ],
-    [ "esp1:34", "btn2:2.r", "orange", [ "h-364.65", "v-96" ] ]
+    [ "esp1:34", "btn2:2.r", "orange", [ "h-364.65", "v-96" ] ],
+    [ "rgb1:COM", "esp1:GND.1", "green", [ "v52.15", "h268.5" ] ]
   ],
   "dependencies": {}
 }

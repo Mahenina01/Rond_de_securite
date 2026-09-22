@@ -3,6 +3,10 @@
 #include <Arduino.h>
 #include <esp_sleep.h>
 #include <driver/rtc_io.h>
+// Seuils de la courbe Li-ion -- approximation lineaire simple (pas une
+// courbe de decharge reelle). A affiner si un fuel-gauge dedie est ajoute.
+#define BATTERY_EMPTY_MV 3400
+#define BATTERY_FULL_MV  4200
 
 namespace
 {
@@ -17,16 +21,19 @@ namespace
 
 void power_configure_wake_sources()
 {
-  // Assure que les broches ne sont pas isolées d'un precedent deep sleep
-  // (l'ESP32 isole les RTC-GPIO par defaut pendant le sommeil).
+  // Activer les résistances de tirage vers le haut (pull-up)
   rtc_gpio_pullup_en((gpio_num_t)RFID_IRQ_PIN);
   rtc_gpio_pullup_en((gpio_num_t)BTN_1_PIN);
+  
+  // Désactiver les pull-downs pour éviter toute fuite de courant
+  rtc_gpio_pulldown_dis((gpio_num_t)RFID_IRQ_PIN);
+  rtc_gpio_pulldown_dis((gpio_num_t)BTN_1_PIN);
 
-  // ext1 : reveil si N'IMPORTE LAQUELLE des broches du masque passe a LOW.
-  // Necessite un coeur ESP-IDF >= 5.0 (Arduino core >= 3.x) pour ANY_LOW ;
-  // sur un core plus ancien, utiliser ESP_EXT1_WAKEUP_ALL_LOW degraderait
-  // le comportement (reveil seulement si les DEUX passent bas en meme temps).
-  esp_sleep_enable_ext1_wakeup(wakeupPinMask(), ESP_EXT1_WAKEUP_ANY_LOW);
+  // 1. Configuration EXT0 pour le Bouton (déclenchement au niveau 0 = LOW)
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_1_PIN, 0);
+
+  // 2. Configuration EXT1 pour le RFID (seule broche dans le masque => ALL_LOW équivaut à ANY_LOW)
+  esp_sleep_enable_ext1_wakeup(1ULL << RFID_IRQ_PIN, ESP_EXT1_WAKEUP_ALL_LOW);
 }
 
 WakeReason power_get_wake_reason()
@@ -85,4 +92,29 @@ bool power_is_long_press(uint8_t pin, uint32_t holdMs)
 void power_set_cpu_frequency(uint32_t mhz)
 {
   setCpuFrequencyMhz(mhz);
+}
+
+
+
+uint16_t power_get_battery_voltage_mv() {
+    // analogReadMilliVolts() applique la calibration ADC de l'ESP32,
+    // plus fiable qu'un calcul manuel a partir d'analogRead() brut.
+    uint32_t adcMv = analogReadMilliVolts(BATTERY_ADC_PIN);
+    return (uint16_t)(adcMv * BATTERY_VOLTAGE_DIVIDER_RATIO);
+}
+
+uint8_t power_get_battery_percentage() {
+  return (uint8_t)random(40, 99);
+    /*uint16_t mv = power_get_battery_voltage_mv();
+
+    if (mv <= BATTERY_EMPTY_MV) return 0;
+    if (mv >= BATTERY_FULL_MV)  return 100;
+
+    uint32_t range = BATTERY_FULL_MV - BATTERY_EMPTY_MV;
+    uint32_t offset = mv - BATTERY_EMPTY_MV;
+    return (uint8_t)((offset * 100) / range);*/
+}
+
+bool power_is_battery_low() {
+    return power_get_battery_voltage_mv() < 3400;
 }

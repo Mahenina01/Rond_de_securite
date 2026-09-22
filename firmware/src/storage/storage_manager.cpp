@@ -45,7 +45,7 @@ namespace
 
 bool storage_init()
 {
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (!LittleFS.begin(true, "/littlefs", 10, "spiffs"))
   {
     Serial.println("[storage] Echec montage LittleFS");
     return false;
@@ -155,7 +155,10 @@ size_t storage_find_by_status(LogStatus status, LogEntry *out_entries, size_t ma
 
     size_t statusOffset = checkpointOffset + LOG_FIELD_CHECKPOINT_LEN + 1;
     entry.statut_envoi = (LogStatus)buffer[statusOffset];
+    
+    // Assignation des deux identifiants
     entry.line_index = lineIndex;
+    entry.id = lineIndex; // L'identifiant unique correspond au numéro de ligne
 
     if (entry.statut_envoi == status)
       out_entries[found++] = entry;
@@ -164,6 +167,34 @@ size_t storage_find_by_status(LogStatus status, LogEntry *out_entries, size_t ma
 
   f.close();
   return found;
+}
+
+ size_t storage_count_by_status(LogStatus status)
+{
+  File f = LittleFS.open(LOG_FILE_PATH, "r");
+  if (!f)
+    return 0;
+
+  size_t count = 0;
+  uint8_t buffer[LOG_LINE_LEN];
+
+  const size_t statusOffset = LOG_FIELD_TIMESTAMP_LEN + 1 + LOG_FIELD_AGENT_LEN + 1 +
+                              LOG_FIELD_CHECKPOINT_LEN + 1;
+
+  while (f.available() >= LOG_LINE_LEN)
+  {
+    if (f.read(buffer, LOG_LINE_LEN) != LOG_LINE_LEN)
+      break;
+
+    LogStatus lineStatus = (LogStatus)buffer[statusOffset];
+    if (lineStatus == status)
+    {
+      count++;
+    }
+  }
+
+  f.close();
+  return count;
 }
 
 void storage_build_log_id(const LogEntry &entry, char *out, size_t out_len)

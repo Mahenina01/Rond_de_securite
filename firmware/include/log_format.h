@@ -1,56 +1,47 @@
-#pragma once
+#ifndef LOG_FORMAT_H
+#define LOG_FORMAT_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include <LittleFS.h>
 
-#define LOG_FIELD_TIMESTAMP_LEN 20
-#define LOG_FIELD_AGENT_LEN 5
-#define LOG_FIELD_CHECKPOINT_LEN 14
-#define LOG_LINE_LEN 44
+// Tailles des champs du fichier CSV persistant (LittleFS)
+#define LOG_FIELD_TIMESTAMP_LEN  20  // "YYYY-MM-DDTHH:MM:SSZ"
+#define LOG_FIELD_AGENT_LEN      5   // Ex: "AG001"
+#define LOG_FIELD_CHECKPOINT_LEN 14  // Ex: "CHECKPOINT_001"
+#define LOG_LINE_LEN             44  // Taille fixe d'une ligne CSV avec '\n'
 
-/// Seuil d'occupation LittleFS (%) déclenchant la libération d'espace.
+/// Seuil d'occupation LittleFS (%) déclenchant la libération d'espace
 #define LOG_SPACE_LOW_THRESHOLD_PERCENT 90
 
-/// Statut d'envoi, codé en caractère ASCII ('0'/'1'/'2') = octet persisté.
+/// Statut d'envoi, codé en caractère ASCII ('0'/'1'/'2') pour écriture directe en mémoire flash
 enum LogStatus : char
 {
-  LOG_STATUS_PENDING = '0', ///< Écrit localement, envoi non confirmé.
-  LOG_STATUS_SENT = '1',    ///< Transmis et acquitté (ACK MQTT).
-  LOG_STATUS_FAILED = '2',  ///< Échec du dernier envoi, à réessayer.
+    LOG_STATUS_PENDING = '0', ///< Écrit localement, envoi non confirmé (EN_ATTENTE)
+    LOG_STATUS_SENT    = '1', ///< Transmis et acquitté via MQTT (ENVOYE)
+    LOG_STATUS_FAILED  = '2', ///< Échec du dernier envoi (ECHEC)
 };
 
-/// Entrée de log en mémoire.
+/// Structure unifiée de log en mémoire (Zéro allocation dynamique)
 struct LogEntry
 {
-  char timestamp_iso[LOG_FIELD_TIMESTAMP_LEN + 1];
-  char id_agent[LOG_FIELD_AGENT_LEN + 1];
-  char id_checkpoint[LOG_FIELD_CHECKPOINT_LEN + 1];
-  LogStatus statut_envoi;
-  uint32_t line_index; ///< Position de la ligne, pour seek() ultérieur.
+    uint32_t id;                                       ///< Identifiant unique du log (utilisé par MQTT)
+    char timestamp_iso[LOG_FIELD_TIMESTAMP_LEN + 1];  ///< Tampon horodateur ISO 8601 (+ '\0')
+    char id_agent[LOG_FIELD_AGENT_LEN + 1];           ///< Identifiant agent (+ '\0')
+    char id_checkpoint[LOG_FIELD_CHECKPOINT_LEN + 1];  ///< Identifiant checkpoint (+ '\0')
+    LogStatus statut_envoi;                            ///< État de la transmission
+    uint32_t line_index;                               ///< Position de la ligne pour accès direct seek()
 };
 
-/// Monte LittleFS et initialise logs.csv si absent
-bool storage_init();
-
-/// Ajoute une entrée (statut initial PENDING). Retourne son line_index
-bool storage_append_log(const char *timestamp_iso, const char *id_agent,
-                        const char *id_checkpoint, uint32_t *out_line_index);
-
-/// Met à jour le statut d'une ligne par accès direct (seek + 1 octet)
-bool storage_update_status(uint32_t line_index, LogStatus new_status);
-
-/// Retourne les entrées correspondant au statut demandé
+// API du Gestionnaire de Stockage (LittleFS)
+bool   storage_init();
+bool   storage_append_log(const char *timestamp_iso, const char *id_agent,
+                          const char *id_checkpoint, uint32_t *out_line_index);
+bool   storage_update_status(uint32_t line_index, LogStatus new_status);
 size_t storage_find_by_status(LogStatus status, LogEntry *out_entries, size_t max_entries);
+size_t storage_count_by_status(LogStatus status);
+void   storage_build_log_id(const LogEntry &entry, char *out, size_t out_len);
+bool   storage_is_space_low(uint8_t threshold_percent = LOG_SPACE_LOW_THRESHOLD_PERCENT);
+bool   storage_reclaim_space();
 
-/// Construit un identifiant unique (timestamp + checkpoint) pour l'ACK MQTT
-void storage_build_log_id(const LogEntry &entry, char *out, size_t out_len);
-
-/// Indique si l'espace LittleFS occupé dépasse le seuil critique
-bool storage_is_space_low(uint8_t threshold_percent = LOG_SPACE_LOW_THRESHOLD_PERCENT);
-
-/**
- * @brief Libère de l'espace en supprimant les entrées LOG_STATUS_SENT.
- *        Cède la main périodiquement (yield) pour éviter un déclenchement du watchdog.
- * @return true si la compaction a réussi
- */
-bool storage_reclaim_space();
+#endif // LOG_FORMAT_H

@@ -47,7 +47,7 @@ bool RFID_IsCardPresent(void)
   return rc522->PICC_IsNewCardPresent() && rc522->PICC_ReadCardSerial();
 }
 
-bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
+/*bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
 {
   if (rc522 == nullptr || uidStrOut == nullptr)
     return false;
@@ -62,6 +62,31 @@ bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
 
   if (!rc522->PICC_HaltA())
   {
+    Serial.println("[RFID] Avertissement : PICC_HaltA a échoué");
+  }
+  rc522->PCD_StopCrypto1();
+
+  return true;
+}*/
+bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
+{
+  if (rc522 == nullptr || uidStrOut == nullptr)
+    return false;
+  if (maxLen < RFID_UID_MAX_STR_LEN)
+    return false;
+
+  // Déclenche la lecture effective des octets du badge sur le bus SPI
+  if (!rc522->PICC_ReadCardSerial()) {
+    return false;
+  }
+
+  const MFRC522::Uid &uid = rc522->uid;
+  if (uid.size == 0)
+    return false;
+
+  bytesToHexString(uid.uidByte, uid.size, uidStrOut);
+
+  if (!rc522->PICC_HaltA()) {
     Serial.println("[RFID] Avertissement : PICC_HaltA a échoué");
   }
   rc522->PCD_StopCrypto1();

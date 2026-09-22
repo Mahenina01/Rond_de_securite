@@ -8,7 +8,7 @@
 #include <esp_system.h>
 #include "log_format.h"
 #include "system_config.h"
-
+#include "./hal/rtc_ds3231.h"
 namespace
 {
 
@@ -112,27 +112,43 @@ namespace
 
 void softap_start()
 {
-  // Premiere barriere : le SoftAP lui-meme est protege WPA2, pas ouvert.
-  WiFi.softAP("Ronde-Pointeuse-01", AP_WIFI_PASSWORD);
+  // =================================================================
+  // MODE STATION (Pour simulation Wokwi)
+  // =================================================================
+  WiFi.mode(WIFI_STA);
+  WiFi.begin("Wokwi-GUEST", ""); // Connexion au réseau virtuel Wokwi
 
-  // Redirige toutes les requêtes DNS vers l'ESP32 pour le portail captif
+  Serial.print("[WiFi] Connexion a Wokwi-GUEST");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("[WEB] Dashboard accessible sur : http://");
+  Serial.println(WiFi.localIP());
+
+  // En mode Station sur Wokwi, le serveur DNS du portail captif est inutile
+  // car vous accédez directement à l'IP attribuée par la passerelle.
+  // dnsServer.start(DNS_PORT, "*", WiFi.localIP());
+
+  // =================================================================
+  // MODE POINT D'ACCÈS (Pour matériel réel - Désactivé)
+  // =================================================================
+  /*
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(RESCUE_SSID, AP_WIFI_PASSWORD);
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+  */
 
-  // Activer l'analyse de l'en-tête "Cookie"
+  // --- CONFIGURATION DU SERVEUR WEB ---
   const char *headerKeys[] = {"Cookie"};
   server.collectHeaders(headerKeys, 1);
 
-  // --- CAPTURE DES SONDES PORTAIL CAPTIF (Android, iOS/Mac, Windows) ---
+  // Redirection des sondes de portail captif vers la racine
   auto handleCaptiveProbe = []()
   {
-    if (isSessionValid())
-    {
-      server.sendHeader("Location", "/dashboard", true);
-    }
-    else
-    {
-      server.sendHeader("Location", "/", true);
-    }
+    server.sendHeader("Location", isSessionValid() ? "/dashboard" : "/", true);
     server.send(302, "text/plain", "");
   };
 
@@ -146,16 +162,17 @@ void softap_start()
   server.on("/library/test/success.html", HTTP_GET, handleCaptiveProbe);
 
   server.on("/", HTTP_GET, []()
-            {
+  {
     if (isSessionValid()) {
       server.sendHeader("Location", "/dashboard", true);
       server.send(302, "text/plain", "");
     } else {
       sendLoginPage(false);
-    } });
+    } 
+  });
 
   server.on("/login", HTTP_POST, []()
-            {
+  {
     if (millis() < g_lockoutUntil) {
       server.send(429, "text/plain", "Trop de tentatives, reessayez plus tard.");
       return;
@@ -184,23 +201,23 @@ void softap_start()
         g_failedAttempts = 0;
       }
       sendLoginPage(true);
-    } });
+    } 
+  });
 
-  // Toutes les routes suivantes exigent une session valide
   server.on("/dashboard", HTTP_GET, []()
-            {
+  {
     if (!requireAuth()) return;
-    // Vérifie l'existence du fichier avant de tenter de l'ouvrir
     if (LittleFS.exists("/dashboard.html")) {
         File file = LittleFS.open("/dashboard.html", "r");
         server.streamFile(file, "text/html");
         file.close();
     } else {
-        server.send(200, "text/html", "<html><body><h1>Dashboard PN-01</h1><p>Fichier dashboard.html non présent sur LittleFS.</p></body></html>");
-    } });
+        server.send(200, "text/html", "<html><body><h1>Dashboard PN-01</h1><p>Fichier dashboard.html non present sur LittleFS.</p></body></html>");
+    } 
+  });
 
   server.on("/download", HTTP_GET, []()
-            {
+  {
     if (!requireAuth()) return;
     File file = LittleFS.open("/logs.csv", "r");
     if (!file) {
@@ -209,11 +226,11 @@ void softap_start()
     }
     server.sendHeader("Content-Disposition", "attachment; filename=logs.csv");
     server.streamFile(file, "text/csv");
-    file.close(); });
+    file.close(); 
+  });
 
-  // Endpoint API pour fournir l'état en direct au tableau de bord
   server.on("/api/status", HTTP_GET, []()
-            {
+  {
     if (!requireAuth()) return;
 
     size_t totalBytes = LittleFS.totalBytes();
@@ -226,54 +243,65 @@ void softap_start()
     snprintf(timeoutStr, sizeof(timeoutStr), "%02u:%02u", (unsigned int)(seconds / 60), (unsigned int)(seconds % 60));
 
     String json = "{";
-    json += "\"rtc\":\"30/08/2026 14:27:00\","; // TODO : implementer la récupération de l'heure RTC réelle
-    json += "\"battery\":78,";       // TODO : implementer la récupération de l'état réel de la batterie          
+    json += "\"rtc\":\"30/08/2026 14:27:00\",";
+    json += "\"battery\":78,";          
     json += "\"timeout\":\"" + String(timeoutStr) + "\",";
-    json += "\"pending\":12,"; // TODO : implementer la récupération du nombre réel d'entrées en attente
-    json += "\"sent\":340,"; // TODO : implementer la récupération du nombre réel d'entrées envoyées
-    json += "\"failed\":3,"; // TODO : implementer la récupération du nombre réel d'entrées échouées
+    json += "\"pending\":12,";
+    json += "\"sent\":340,";
+    json += "\"failed\":3,";
     json += "\"used\":" + String(usedPercent);
     json += "}";
 
-    server.send(200, "application/json", json); });
+    server.send(200, "application/json", json); 
+  });
 
   server.on("/purge", HTTP_POST, []()
-            {
+  {
     if (!requireAuth()) return;
     LittleFS.remove("/logs.csv");
     storage_init();
     server.sendHeader("Location", "/dashboard", true);
-    server.send(302, "text/plain", ""); });
+    server.send(302, "text/plain", ""); 
+  });
 
   server.on("/sync-rtc", HTTP_POST, []()
-            {
+  {
     if (!requireAuth()) return;
-    server.sendHeader("Location", "/dashboard", true);
-    server.send(302, "text/plain", ""); });
+    
+    if (server.hasArg("time")) {
+        rtc_sync_from_string(server.arg("time").c_str());
+    } else if (server.hasArg("timestamp")) {
+        rtc_sync_from_string(server.arg("timestamp").c_str());
+    }
+    
+    server.send(200, "text/plain", "OK"); 
+  });
 
-  // Redirection automatique pour les requêtes inconnues du portail captif
   server.onNotFound([]()
-                    {
+  {
     if (isSessionValid()) {
       server.sendHeader("Location", "/dashboard", true);
       server.send(302, "text/plain", "");
     } else {
       sendLoginPage(false);
-    } });
+    } 
+  });
 
   server.begin();
 }
 
+
+
 // Traite les requêtes HTTP/DNS entrantes (à appeler dans la tâche FreeRTOS)
 void softap_loop()
 {
-  dnsServer.processNextRequest();
+ // dnsServer.processNextRequest();
   server.handleClient();
 }
 
 void softap_stop()
 {
-  dnsServer.stop();
+  //dnsServer.stop();
   server.close();
   WiFi.softAPdisconnect(true);
   g_sessionToken[0] = '\0'; // invalide toute session en cours

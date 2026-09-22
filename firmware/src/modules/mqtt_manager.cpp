@@ -96,28 +96,25 @@ bool mqtt_publish_log(const LogEntry &entry)
         return false;
     }
 
-    // Réinitialisation de l'état de l'ACK attendu
+    // Remplacer entry.id par entry.line_index[cite: 12, 14]
     g_ack_received = false;
-    g_ack_target_id = entry.id;
+    g_ack_target_id = entry.line_index; 
 
-    // Construction du document JSON sur la pile (ArduinoJson 7)
     JsonDocument doc;
-    doc["id"] = entry.id;
+    doc["id"] = entry.line_index; // Remplacer entry.id par entry.line_index
     doc["device_id"] = DEVICE_ID;
     doc["timestamp"] = entry.timestamp_iso;
     doc["id_agent"] = entry.id_agent;
     doc["id_checkpoint"] = entry.id_checkpoint;
 
-    // Sérialisation dans un buffer local fixe
     char json_buffer[256];
     size_t bytes_written = serializeJson(doc, json_buffer, sizeof(json_buffer));
 
     if (bytes_written == 0)
     {
-        return false; // Erreur d'espace dans le buffer
+        return false;
     }
 
-    // Envoi du payload sur le topic de données
     return mqttClient.publish(g_topic_data, json_buffer);
 }
 

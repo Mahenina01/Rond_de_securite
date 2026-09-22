@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "hal/log_entry.h"
+#include "log_format.h"
 
 // Prototypes de l'interface mqtt_manager
 bool mqtt_connect();
