@@ -87,5 +87,6 @@
 // TIMERS & TIMEOUTS SYSTÈME
 // =============================================================================
 #define WATCHDOG_TIMEOUT_S 10
+#define NETWORK_GLOBAL_TIMEOUT_MS (5 * 60 * 1000UL)
 
 #endif

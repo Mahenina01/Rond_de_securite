@@ -22,10 +22,9 @@ void power_configure_wake_sources()
   rtc_gpio_pullup_en((gpio_num_t)RFID_IRQ_PIN);
   rtc_gpio_pullup_en((gpio_num_t)BTN_1_PIN);
 
-  // ext1 : reveil si N'IMPORTE LAQUELLE des broches du masque passe a LOW.
-  // Necessite un coeur ESP-IDF >= 5.0 (Arduino core >= 3.x) pour ANY_LOW ;
-  // sur un core plus ancien, utiliser ESP_EXT1_WAKEUP_ALL_LOW degraderait
-  // le comportement (reveil seulement si les DEUX passent bas en meme temps).
+  // ext1 : reveil si N'IMPORTE LAQUELLE des broches du masque passe a LOW
+  // ESP_EXT1_WAKEUP_ALL_LOW pour les ancien core
+  // Comportement (reveil seulement si les DEUX passent bas en meme temps)
   esp_sleep_enable_ext1_wakeup(wakeupPinMask(), ESP_EXT1_WAKEUP_ANY_LOW);
 }
 

@@ -19,6 +19,7 @@ static volatile bool g_ack_received = false;
 static volatile uint32_t g_ack_target_id = 0;
 static bool ackWaiting = false;
 static uint32_t ackStartMs = 0;
+
 /**
  * @brief Callback appelé à la réception d'un message MQTT
  */

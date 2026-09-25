@@ -22,6 +22,7 @@ enum LogStatus : char
 /// Entrée de log en mémoire.
 struct LogEntry
 {
+  int id;
   char timestamp_iso[LOG_FIELD_TIMESTAMP_LEN + 1];
   char id_agent[LOG_FIELD_AGENT_LEN + 1];
   char id_checkpoint[LOG_FIELD_CHECKPOINT_LEN + 1];

@@ -6,9 +6,9 @@
 /// Raison du réveil, traduite pour la state machine (app.cpp).
 enum class WakeReason
 {
-  POWER_ON,       ///< Reset complet.
-  RFID_DETECTED,  ///< Réveil via IRQ RC522.
-  BUTTON_PRESSED, ///< Réveil via bouton.
+  POWER_ON,       ///< Reset complet
+  RFID_DETECTED,  ///< Réveil via IRQ RC522
+  BUTTON_PRESSED, ///< Réveil via bouton
   UNKNOWN,
 };
 

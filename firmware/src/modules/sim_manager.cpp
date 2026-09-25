@@ -1,7 +1,5 @@
 // sim_manager.cpp
-#include "./hal/sim_manager.h"
-#include "./system_config.h"
-#include "pins_config.h"
+#include "hal/sim_manager.h"
 #include <Arduino.h>
 
 static HardwareSerial simSerial(1); // UART1 dedie au module 4G

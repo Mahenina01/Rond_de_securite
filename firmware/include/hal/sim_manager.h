@@ -1,11 +1,12 @@
 #pragma once
-// sim_manager.h
 // Gestion du module 4G SIM7600E-H : alimentation et etat reseau.
 // Toutes les fonctions sont NON-BLOQUANTES : a rappeler a chaque tour de loop()
 // jusqu'a ce qu'elles renvoient true (succes) ou soient explicitement redemarrees.
 
 #include <stdint.h>
 #include <TinyGsmClient.h>
+#include "system_config.h"
+#include "pins_config.h"
 // Sequence de mise sous tension du modem (impulsion PWRKEY + attente boot).
 // Non-bloquant : renvoie false tant que la sequence n'est pas terminee,
 // true une fois le modem pret a repondre aux commandes AT.

@@ -1,0 +1,20 @@
+#pragma once
+
+enum class MachineState
+{
+  DEEP_SLEEP,
+  CHECK_WAKE_REASON,
+  READ_TAG,
+  TIMESTAMP,
+  WRITE_LOG,
+
+  SIM_POWER_ON,
+  MQTT_CONNECT,
+  MQTT_RETRY,
+  PUBLISH_WAIT_ACK,
+  MARK_SENT,
+  MARK_FAILED,
+  SIM_POWER_OFF,
+
+  RESCUE_MODE_ACTIVE,
+};
