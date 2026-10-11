@@ -1,8 +1,9 @@
 package com.fortico.ronde_security.service;
 
-import com.fortico.ronde_security.dtos.AgentRequest;
-import com.fortico.ronde_security.dtos.AgentResponse;
+import com.fortico.ronde_security.dtos.agent.AgentRequest;
+import com.fortico.ronde_security.dtos.agent.AgentResponse;
 import com.fortico.ronde_security.exception.DuplicateAgentCodeException;
+import com.fortico.ronde_security.exception.ResourceNotFoundException;
 import com.fortico.ronde_security.repo.AgentRepository;
 import com.fortico.ronde_security.model.Agents;
 import java.util.List;
@@ -21,15 +22,15 @@ public class AgentServiceImpl implements AgentService {
 
     @Override
     public AgentResponse create(AgentRequest request) {
-        if (agentRepository.existsByAgentCode(request.agent_code())) {
-            throw new DuplicateAgentCodeException("Le code de l'agent existe déjà : " + request.agent_code());
+        if (agentRepository.existsByAgentCode(request.agentCode())) {
+            throw new DuplicateAgentCodeException("Le code de l'agent existe déjà : " + request.agentCode());
         }
-        Agents agent = Agents.builder()
-                .agent_code(request.agent_code())
-                .name(request.name())
-                .phone(request.phone())
-                .is_active(true)
-                .build();
+        Agents agent = new Agents();
+        agent.setAgentCode(request.agentCode());
+        agent.setName(request.name());
+        agent.setPhone(request.phone());
+        agent.setIsActive(true);
+
         Agents savedAgent = agentRepository.save(agent);
 
         return toAgentResponse(savedAgent);
@@ -44,34 +45,35 @@ public class AgentServiceImpl implements AgentService {
                 .toList();
     }
 
-    @Override 
-    @Transactional (readOnly = true)
-    public AgentResponse findById(Long id){
+    @Override
+    @Transactional(readOnly = true)
+    public AgentResponse findById(Long id) {
         Agents agent = getAgentById(id);
         return toAgentResponse(agent);
     }
+
     private Agents getAgentById(Long id) {
         return agentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Agent not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Agent not found with id: " + id));
     }
 
     @Override
     public AgentResponse update(Long id, AgentRequest request) {
         Agents agent = getAgentById(id);
-        if(agentRepository.existsByAgentCodeAndIdNot(request.agent_code(), id)) {
-            throw new DuplicateAgentCodeException("Le code de l'agent existe déjà : " + request.agent_code());
+        if (agentRepository.existsByAgentCodeAndIdNot(request.agentCode(), id)) {
+            throw new DuplicateAgentCodeException("Le code de l'agent existe déjà : " + request.agentCode());
         }
-        agent.setAgent_code(request.agent_code());
+        agent.setAgentCode(request.agentCode());
         agent.setName(request.name());
         agent.setPhone(request.phone());
         Agents updatedAgent = agentRepository.save(agent);
         return toAgentResponse(updatedAgent);
     }
 
-    @Override 
+    @Override
     public AgentResponse updateStatus(Long id, Boolean isActive) {
         Agents agent = getAgentById(id);
-        agent.setIs_active(isActive);
+        agent.setIsActive(isActive);
         Agents updatedAgent = agentRepository.save(agent);
         return toAgentResponse(updatedAgent);
     }
@@ -89,18 +91,14 @@ public class AgentServiceImpl implements AgentService {
                 .map(this::toAgentResponse)
                 .collect(Collectors.toList());
     }
-    
-
 
     private AgentResponse toAgentResponse(Agents agent) {
         return new AgentResponse(
                 agent.getId(),
-                agent.getAgent_code(),
+                agent.getAgentCode(),
                 agent.getName(),
                 agent.getPhone(),
-                agent.getIs_active(),
-                agent.getCreated_at()
-        );
+                agent.getIsActive());
     }
 
 }

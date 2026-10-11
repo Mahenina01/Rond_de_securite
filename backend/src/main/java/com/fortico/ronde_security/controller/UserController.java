@@ -1,5 +1,5 @@
 
-package com.fortico.ronde_security.controler;
+package com.fortico.ronde_security.controller;
 
 import com.fortico.ronde_security.dtos.user.*;
 import com.fortico.ronde_security.service.UserService;

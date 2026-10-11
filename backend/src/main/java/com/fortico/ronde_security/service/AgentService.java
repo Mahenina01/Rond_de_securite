@@ -2,8 +2,9 @@ package com.fortico.ronde_security.service;
 
 import java.util.List;
 
-import com.fortico.ronde_security.dtos.Agent.AgentRequest;
-import com.fortico.ronde_security.dtos.Agent.AgentResponse;
+import com.fortico.ronde_security.dtos.agent.AgentRequest;
+import com.fortico.ronde_security.dtos.agent.AgentResponse;
+
 public interface AgentService {
     AgentResponse create(AgentRequest request);
 
