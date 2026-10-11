@@ -47,7 +47,12 @@ public class SecurityConfig {
             .requestMatchers(
                 "/api/v1/users/login",
                 "/actuator/health",
-                "/error")
+                "/error",
+                "/swagger-ui.html",
+                "/swagger-ui/**",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/v3/api-docs.yaml")
             .permitAll()
 
             // OPTIONS est utilisé notamment pour les requêtes CORS

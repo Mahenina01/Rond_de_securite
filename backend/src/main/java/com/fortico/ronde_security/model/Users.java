@@ -1,7 +1,11 @@
 package com.fortico.ronde_security.model;
 
+import com.fortico.ronde_security.enums.Role;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import lombok.Data;
@@ -26,8 +30,9 @@ public class Users {
   @Column(name = "password", nullable = false, length = 255)
   private String password;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "role", nullable = false, length = 30)
-  private String role;
+  private Role role;
 
   @Column(name = "is_active", nullable = false)
   private boolean isActive;

@@ -2,12 +2,12 @@ spring:
   application:
     name: ronde-security
 
-  # MySQL
+  # PostgreSQL
   datasource:
-    url: "jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:ronde_security}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-    username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: "jdbc:postgresql://${MYSQL_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:ronde_security}"
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:selesy20}
+    driver-class-name: org.postgresql.Driver
 
   # JPA / Hibernate
   jpa:
@@ -39,6 +39,17 @@ management:
       exposure:
         include: health,info
 
+# JWT
 jwt:
   secret: ${JWT_SECRET:nvz7Y2UYw8KPbHut3vCoq32UpzlXU6U8sIxHWCva1r8=}
   expiration: 3600000
+
+# Swagger / OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
