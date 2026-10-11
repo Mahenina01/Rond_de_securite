@@ -21,8 +21,11 @@ public class Users {
   @Column(name = "photo", length = 500)
   private String photo;
 
-  @Column(name = "username", nullable = false, unique = true, length = 100)
+  @Column(name = "username", nullable = false, unique = true, length = 20)
   private String username;
+
+  @Column(name = "name", nullable = false, length = 100)
+  private String name;
 
   @Column(name = "email", nullable = false, unique = true, length = 255)
   private String email;

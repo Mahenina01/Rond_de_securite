@@ -1,4 +1,7 @@
+
 package com.fortico.ronde_security.config;
+
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,39 +16,40 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import com.fortico.ronde_security.filter.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-  // Configuration principale de la sécurité HTTP
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  public SecurityConfig(
+      JwtAuthenticationFilter jwtAuthenticationFilter) {
+    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+  }
 
   @Bean
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http) throws Exception {
 
     http
-        // Autorise les requêtes provenant du frontend configuré ci-dessous
         .cors(Customizer.withDefaults())
-
-        // API REST : désactivation du CSRF pour une API sans session navigateur
         .csrf(csrf -> csrf.disable())
 
-        // Aucune session HTTP conservée côté serveur
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-        // Règles d'accès aux endpoints.
         .authorizeHttpRequests(auth -> auth
-            // Endpoints publics
             .requestMatchers(
                 "/api/v1/users/login",
+                "/api/v1/users/create",
                 "/actuator/health",
                 "/error",
                 "/swagger-ui.html",
@@ -55,45 +59,39 @@ public class SecurityConfig {
                 "/v3/api-docs.yaml")
             .permitAll()
 
-            // OPTIONS est utilisé notamment pour les requêtes CORS
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // Tous les autres endpoints nécessitent une authentification.
             .anyRequest().authenticated())
 
-        // Authentification HTTP Basic pour cette configuration initiale.
-        .httpBasic(Customizer.withDefaults())
+        // JWT remplace HTTP Basic
+        .httpBasic(basic -> basic.disable())
+        .formLogin(form -> form.disable())
 
-        // Désactive les formulaires de connexion HTML.
-        .formLogin(form -> form.disable());
+        // Validation du JWT avant les filtres d'authentification classiques
+        .addFilterBefore(
+            jwtAuthenticationFilter,
+            UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
 
-  /**
-   * Encode les mots de passe avant leur enregistrement en base
-   */
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
 
-  /**
-   * Fournit l'AuthenticationManager de Spring Security.
-   */
   @Bean
   public AuthenticationManager authenticationManager(
       AuthenticationConfiguration configuration) throws Exception {
     return configuration.getAuthenticationManager();
   }
 
-  // Configuration CORS
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
 
-    configuration.setAllowedOrigins(List.of("http://localhost:5173")); // TODO : Remplace l'URL par celle de ton
-                                                                       // application frontend
+    configuration.setAllowedOrigins(
+        List.of("http://localhost:5173"));
 
     configuration.setAllowedMethods(List.of(
         "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
