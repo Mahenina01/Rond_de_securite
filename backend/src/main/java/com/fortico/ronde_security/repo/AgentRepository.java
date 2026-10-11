@@ -1,0 +1,16 @@
+package com.fortico.ronde_security.repo;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.fortico.ronde_security.model.Agents;
+
+public interface AgentRepository extends JpaRepository<Agents, Long> {
+    Optional<Agents> findByAgentCode(String agentCode);
+    boolean existsByAgentCode(String agentCode);
+    boolean existsByAgentCodeAndIdNot(String agentCode, Long id);
+    List<Agents> findByActive(boolean active);
+    List<Agents> findByNameContainingIgnoreCase(String name);
+}

@@ -4,9 +4,9 @@ spring:
 
   # PostgreSQL
   datasource:
-    url: "jdbc:postgresql://${MYSQL_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:ronde_security}"
+    url: "jdbc:postgresql://${MYSQL_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:localhost}"
     username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:selesy20}
+    password: ${POSTGRES_PASSWORD:lucarj}
     driver-class-name: org.postgresql.Driver
 
   # JPA / Hibernate
