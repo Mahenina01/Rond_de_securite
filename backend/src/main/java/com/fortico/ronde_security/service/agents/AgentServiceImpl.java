@@ -1,4 +1,4 @@
-package com.fortico.ronde_security.service;
+package com.fortico.ronde_security.service.agents;
 
 import com.fortico.ronde_security.dtos.agent.AgentRequest;
 import com.fortico.ronde_security.dtos.agent.AgentResponse;
