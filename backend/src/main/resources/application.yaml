@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: ronde-security
+
+  # MySQL
+  datasource:
+    url: "jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:ronde-security}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # JPA / Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  address: 0.0.0.0
+  port: ${PORT:8022}
+
+# MQTT
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:ronde-security-backend}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+  data-topic: ronde/boitier/+/data
+  ack-topic-prefix: ronde/boitier/
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:secret}
+    expiration: ${JWT_EXPIRATION:3600000} # 1 hour in milliseconds
