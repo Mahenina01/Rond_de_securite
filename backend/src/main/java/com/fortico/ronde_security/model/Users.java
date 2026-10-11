@@ -13,6 +13,10 @@ public class Users {
   @Id
   @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
   private Long id;
+
+  @Column(name = "photo", length = 500)
+  private String photo;
+
   @Column(name = "username", nullable = false, unique = true, length = 100)
   private String username;
 
