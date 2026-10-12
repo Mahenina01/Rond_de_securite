@@ -20,7 +20,7 @@ import com.fortico.ronde_security.dtos.alerts.AlertsResponse;
 import com.fortico.ronde_security.enums.AlertStatus;
 import com.fortico.ronde_security.service.alerts.AlertsService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
 import jakarta.validation.Valid;
 
 @RestController
@@ -39,7 +39,9 @@ public class AlertsController {
 
     AlertsResponse response = alertsService.createAlert(request);
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    return ResponseEntity
+        .status(HttpStatus.CREATED)
+        .body(response);
   }
 
   @GetMapping

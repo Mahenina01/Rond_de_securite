@@ -36,7 +36,7 @@ public class Alerts {
   private String message;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "location_id", referencedColumnName = "id", nullable = false, foreignKey = @ForeignKey(name = "fk_alerts_location"))
+  @JoinColumn(name = "location_id", referencedColumnName = "id", nullable = false)
   private Location locationId;
 
   @Enumerated(EnumType.STRING)
