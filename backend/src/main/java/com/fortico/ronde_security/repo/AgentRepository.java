@@ -10,6 +10,8 @@ import com.fortico.ronde_security.model.Agents;
 public interface AgentRepository extends JpaRepository<Agents, Long> {
     Optional<Agents> findByAgentCode(String agentCode);
 
+    Optional<Agents> findByName(String name);
+
     boolean existsByAgentCode(String agentCode);
 
     boolean existsByAgentCodeAndIdNot(String agentCode, Long id);

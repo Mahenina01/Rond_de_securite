@@ -44,6 +44,10 @@ jwt:
   secret: ${JWT_SECRET:nvz7Y2UYw8KPbHut3vCoq32UpzlXU6U8sIxHWCva1r8=}
   expiration: 3600000
 
+security:
+  device:
+    encryption-key: ${DEVICE_ENCRYPTION_KEY:HSFCuiOeQHXEq8LLo4q4WbXhIkD+9EX+deY4WtUmcAY=}
+
 # Swagger / OpenAPI
 springdoc:
   api-docs:
