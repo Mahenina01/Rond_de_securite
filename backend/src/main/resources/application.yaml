@@ -18,6 +18,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+        
 
 server:
   address: 0.0.0.0
@@ -57,3 +62,6 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
     try-it-out-enabled: true
+app:
+  upload:
+     logo-dir: uploads/logo
