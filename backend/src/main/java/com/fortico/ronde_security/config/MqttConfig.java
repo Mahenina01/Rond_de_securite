@@ -14,6 +14,8 @@ import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Configuration
 public class MqttConfig {
 
@@ -114,5 +116,10 @@ public class MqttConfig {
     handler.setDefaultRetained(false);
 
     return handler;
+  }
+
+  @Bean
+  public ObjectMapper objectMapper() {
+    return new ObjectMapper();
   }
 }

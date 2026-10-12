@@ -38,8 +38,10 @@ public class LogServiceImpl implements LogService {
   private final AgentRepository agentRepository;
   private final DevicesRepository devicesRepository;
   private final LocationRepository locationRepository;
+  private final LogsRealtimeService logsRealtimeService;
 
   // Créer un log
+
   @Override
   public LogsResponse createLog(LogsRequest request) {
 
@@ -70,9 +72,16 @@ public class LogServiceImpl implements LogService {
         .timestamp(request.timestamp())
         .build();
 
+    // Enregistrer le log dans PostgreSQL
     Logs savedLog = logsRepository.save(log);
 
-    return toResponse(savedLog);
+    // Convertir l'entité en DTO
+    LogsResponse response = toResponse(savedLog);
+
+    // Diffuser le log aux clients WebSocket abonnés
+    logsRealtimeService.publishLog(response);
+
+    return response;
   }
 
   // Lister et filtrer les logs
