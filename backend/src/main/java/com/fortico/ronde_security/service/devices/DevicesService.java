@@ -5,7 +5,6 @@ import java.util.List;
 import com.fortico.ronde_security.dtos.devices.DeviceProvisioningResponse;
 import com.fortico.ronde_security.dtos.devices.DevicesRequest;
 import com.fortico.ronde_security.dtos.devices.DevicesResponse;
-import com.fortico.ronde_security.model.Agents;
 
 public interface DevicesService {
   // creation nouveau appareil

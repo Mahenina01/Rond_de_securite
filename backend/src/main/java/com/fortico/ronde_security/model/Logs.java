@@ -37,6 +37,10 @@ public class Logs {
   @JoinColumn(name = "device_code", referencedColumnName = "device_code", nullable = false)
   private Devices device;
 
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "location_id", referencedColumnName = "id", nullable = false)
+  private Location locationId;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "status", length = 30, nullable = false)
   private LogStatus status;
