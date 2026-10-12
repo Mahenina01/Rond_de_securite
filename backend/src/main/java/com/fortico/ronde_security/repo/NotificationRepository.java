@@ -1,17 +1,18 @@
 package com.fortico.ronde_security.repo;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.fortico.ronde_security.model.Notifications;
+import com.fortico.ronde_security.model.Notification;
 import java.util.List;
 
-public interface NotificationRepository extends JpaRepository<Notifications, Long> {
-    List<Notifications> findByStatus(String status);
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    List<Notifications> findByType(String type);
+    List<Notification> findByStatus(String status);
 
-    List<Notifications> findByStatusAndType(
+    List<Notification> findByType(String type);
+
+    List<Notification> findByStatusAndType(
             String status,
             String type);
 
-    List<Notifications> findByTitle(String title);
+    List<Notification> findByTitle(String title);
 }

@@ -4,7 +4,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import com.fortico.ronde_security.service.notifications.NotificationService;
 import com.fortico.ronde_security.dtos.notification.NotificationRequest;
 import com.fortico.ronde_security.dtos.notification.NotificationResponse;

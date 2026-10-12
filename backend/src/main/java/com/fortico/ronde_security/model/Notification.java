@@ -3,24 +3,17 @@ package com.fortico.ronde_security.model;
 import java.time.OffsetDateTime;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+
 import lombok.*;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
 
 
 @Entity 
 @Table(name = "notifications")
-@Getter 
-@Setter 
+@Data
 @NoArgsConstructor 
 @AllArgsConstructor 
 @Builder 
-public class Notifications {
+public class Notification {
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
