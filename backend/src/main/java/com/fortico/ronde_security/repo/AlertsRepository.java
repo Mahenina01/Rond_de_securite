@@ -10,21 +10,21 @@ import com.fortico.ronde_security.enums.AlertStatus;
 import com.fortico.ronde_security.model.Alerts;
 
 public interface AlertsRepository
-        extends JpaRepository<Alerts, Long>,
-        JpaSpecificationExecutor<Alerts> {
+                extends JpaRepository<Alerts, Long>,
+                JpaSpecificationExecutor<Alerts> {
 
-    List<Alerts> findAllByOrderByReceivedAtDesc();
+        List<Alerts> findAllByOrderByReceivedAtDesc();
 
-    List<Alerts> findByStatusOrderByReceivedAtDesc(
-            AlertStatus status);
+        List<Alerts> findByStatusOrderByReceivedAtDesc(
+                        AlertStatus status);
 
-    List<Alerts> findByLocationId_IdOrderByReceivedAtDesc(
-            Long locationId);
+        List<Alerts> findByLocationId_IdOrderByReceivedAtDesc(
+                        Long locationId);
 
-    List<Alerts> findByLocationId_Agent_IdOrderByReceivedAtDesc(
-            Long agentId);
+        List<Alerts> findByLocationId_Agent_IdOrderByReceivedAtDesc(
+                        Long agentId);
 
-    List<Alerts> findByReceivedAtBetweenOrderByReceivedAtDesc(
-            Instant from,
-            Instant to);
+        List<Alerts> findByReceivedAtBetweenOrderByReceivedAtDesc(
+                        Instant from,
+                        Instant to);
 }
