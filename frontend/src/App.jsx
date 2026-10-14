@@ -1,7 +1,6 @@
-import AlertList from "./components/ui/AlertList";
-import Button from "./components/ui/button";
-function App() {
-  return <div></div>;
-}
+import { RouterProvider } from "react-router";
+import router from "./routes/router";
 
-export default App;
+export default function App() {
+  return <RouterProvider router={router} />;
+}

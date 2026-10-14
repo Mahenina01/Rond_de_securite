@@ -1,16 +1,29 @@
 import NofifIcon from "../../assets/icons/alert-outlined.svg?react";
 import avatar from "../../assets/icons/profile.svg";
+import { useLocation } from "react-router";
+
+const pageTitles = {
+  "/dashboard": "Tableau de bord",
+  "/agents": "Gestion des agents",
+  "/devices": "Gestion des appareils",
+  "/checkpoints": "Points de contrôle",
+  "/reports": "Rapports d'audit",
+  "/settings": "Paramètres",
+  "/signin": "Connexion",
+};
 
 const NavBar = ({
-  title,
   username = "Jhon Doe",
   photoProfile = avatar,
   notificationCount = 0,
   onNotifClick,
   onProfileClick,
 }) => {
+  const location = useLocation();
+
+  const title = pageTitles[location.pathname] ?? "Page introuvable";
   return (
-    <div className="flex flex-row items-center justify-between w-full px-4 py-2 border-b-2 bg-surface border-text-muted">
+    <header className="flex flex-row items-center justify-between w-full px-4 py-2 border-b bg-surface border-text-muted">
       <h1 className="font-sans text-2xl text-primary">{title}</h1>
       <div className="flex flex-row items-center justify-end gap-6">
         <button
@@ -42,7 +55,7 @@ const NavBar = ({
           />
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 

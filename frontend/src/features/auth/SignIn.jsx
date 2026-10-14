@@ -1,5 +1,6 @@
 import bgImage from "../../assets/images/img-login.jpg";
 import Input from "../../components/ui/Input";
+import Button from "../../components/ui/Button";
 
 const SignIn = () => {
   return (
@@ -33,12 +34,13 @@ const SignIn = () => {
             Mot de passe oublié ?
           </p>
         </div>
-        <button
-          type="submit"
-          className="w-full p-4 rounded-lg bg-primary text-surface"
-        >
-          Se connecter
-        </button>
+        <Button
+          onClick={console.log("Validate")}
+          variant="primary"
+          type="button"
+          children={"Se connecter"}
+          className="w-full"
+        />
       </div>
     </div>
   );

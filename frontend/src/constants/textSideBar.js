@@ -20,7 +20,7 @@ const textVariant = {
   },
   location: {
     icon: LocationIcon,
-    text: "Emplacements",
+    text: "Point de contrôle",
   },
   logs: {
     icon: LogIcon,
