@@ -12,7 +12,7 @@ const Card = ({
   const Icon = config.icon;
 
   return (
-    <div className="flex h-[175px] w-[300px] flex-col rounded-[20px] bg-surface p-5">
+    <div className="flex gap-4 flex-col rounded-[20px] bg-surface p-5">
       <div className="flex flex-row items-center justify-between gap-2">
         <h2 className="font-sans font-semibold text-text-primary">
           {config.text}

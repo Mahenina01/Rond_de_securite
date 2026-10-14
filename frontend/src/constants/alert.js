@@ -1,0 +1,11 @@
+const alerts = {
+  title: "Alertes",
+  subtitle: "Derniers événements détectés sur le terrain",
+  agentId: "ID Agent :",
+  agentName: "Nom agent :",
+  location: "Emplacement :",
+  time: "Heure :",
+  phone: "Téléphone :",
+};
+
+export default alerts;
