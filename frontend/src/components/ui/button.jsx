@@ -40,18 +40,19 @@ const variants = {
         "cursor-not-allowed",
         "bg-primary-light",
         "text-white",
-        "border-0",
+        "border-2",
+        "border-transparent",
     ].join(" "),
     waiting: [
         "cursor-wait",
         "bg-primary-waiting",
         "text-white",
-        "border-0",
+        "border-2",
     ].join(" "),
 };
 
 const stateStyles = {
-    disabled: "cursor-not-allowed bg-primary-light text-white",
+    disabled: "cursor-not-allowed bg-primary-light text-white border-2 border-transparent",
 
     outline: [
         "cursor-not-allowed",
