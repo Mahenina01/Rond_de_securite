@@ -9,6 +9,8 @@ export default {
           DEFAULT: "#903BFF",
           hover: "#8C00FF",
           light: "#B47AFF",
+          outline: "#8A38F5",
+          waiting: "#A763E4",
         },
 
         secondary: {
