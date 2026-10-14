@@ -1,6 +1,9 @@
 import bgImage from "../../assets/images/img-login.jpg";
 import Input from "../../components/ui/Input";
+<<<<<<< HEAD
 import Button from "../../components/ui/Button";
+=======
+>>>>>>> origin/frontend
 
 const SignIn = () => {
   return (
@@ -34,6 +37,7 @@ const SignIn = () => {
             Mot de passe oublié ?
           </p>
         </div>
+<<<<<<< HEAD
         <Button
           onClick={console.log("Validate")}
           variant="primary"
@@ -41,6 +45,14 @@ const SignIn = () => {
           children={"Se connecter"}
           className="w-full"
         />
+=======
+        <button
+          type="submit"
+          className="w-full p-4 rounded-lg bg-primary text-surface"
+        >
+          Se connecter
+        </button>
+>>>>>>> origin/frontend
       </div>
     </div>
   );
