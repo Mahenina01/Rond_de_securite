@@ -5,7 +5,6 @@ import ResetPasswordPage from "./features/auth/ResetPasswordPage";
 import VerifyCodePage from "./features/auth/VerifyCodePage";
 function App() {
   return <div>
-    <ForgotPasswordPage/>
   </div>;
 
 }
