@@ -3,10 +3,10 @@ import LogOutIcon from "../../assets/icons/logout-outlined.svg?react";
 const LogOutButton = ({ onclick }) => {
   return (
     <button
-      className="flex flex-row items-center justify-center gap-2 p-2 border-2 rounded-[20px] border-danger hover:bg-danger-light"
+      className="flex flex-row items-center justify-center w-full gap-3 px-4 py-3 border rounded-lg border-danger hover:bg-danger-light"
       onClick={onclick}
     >
-      <LogOutIcon className={"text-danger w-4 h-4"} />
+      <LogOutIcon className={"text-danger w-5 h-5"} />
       <p className="text-sm text-danger font-heading">Déconnexion</p>
     </button>
   );

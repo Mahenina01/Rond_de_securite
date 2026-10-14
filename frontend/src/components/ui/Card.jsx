@@ -1,6 +1,10 @@
 import cardTextVariant from "../../constants/cardText";
 
-const Card = ({ variant = "ronde_confirm", valueCount, evolution }) => {
+const Card = ({
+  variant = "ronde_confirm",
+  valueCount = "-----",
+  evolution,
+}) => {
   const config = cardTextVariant[variant];
 
   if (!config) return null;
