@@ -10,6 +10,9 @@ import Settings from "../features/setting/Settings";
 import SignIn from "../features/auth/SignIn";
 import NotFound from "../features/notfound/NotFound";
 import Locations from "../features/location/Locations";
+import ForgotPasswordPage from "../features/auth/ForgotPasswordPage";
+import ResetPasswordPage from "../features/auth/ResetPasswordPage";
+import VerifyCodePage from "../features/auth/VerifyCodePage";
 
 const router = createBrowserRouter([
   {
@@ -53,15 +56,15 @@ const router = createBrowserRouter([
   },
   {
     path: "/forgot-password",
-    element: <NotFound />,
+    element: <ForgotPasswordPage />,
   },
   {
     path: "/verify-email",
-    element: <NotFound />,
+    element: <VerifyCodePage />,
   },
   {
-    path: "/reinitialize-password",
-    element: <NotFound />,
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
   },
 ]);
 

@@ -1,11 +1,10 @@
 import bgImage from "../../assets/images/img-login.jpg";
 import Input from "../../components/ui/Input";
-<<<<<<< HEAD
 import Button from "../../components/ui/Button";
-=======
->>>>>>> origin/frontend
+import { useNavigate } from "react-router";
 
 const SignIn = () => {
+  const navigate = useNavigate();
   return (
     <div
       className="flex flex-row items-center justify-center w-full min-h-screen px-20 py-10 bg-center bg-no-repeat bg-cover"
@@ -33,26 +32,20 @@ const SignIn = () => {
         <Input label={"Mot de passe"} variant="password" required={true} />
         <div className="flex flex-row items-center w-full">
           <span className="flex-1"></span>
-          <p className="text-sm hover:text-primary-hover hover:cursor-pointer text-primary">
+          <p
+            className="text-sm hover:text-primary-hover hover:cursor-pointer text-primary"
+            onClick={() => navigate("/forgot-password")}
+          >
             Mot de passe oublié ?
           </p>
         </div>
-<<<<<<< HEAD
         <Button
-          onClick={console.log("Validate")}
+          onClick={() => navigate("/")}
           variant="primary"
           type="button"
           children={"Se connecter"}
           className="w-full"
         />
-=======
-        <button
-          type="submit"
-          className="w-full p-4 rounded-lg bg-primary text-surface"
-        >
-          Se connecter
-        </button>
->>>>>>> origin/frontend
       </div>
     </div>
   );

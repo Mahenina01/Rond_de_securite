@@ -33,14 +33,16 @@ const variants = {
     "border-2",
     "border-primary-outline",
     "hover:bg-primary-light",
+    "hover:text-white",
   ].join(" "),
   disabled: [
     "cursor-not-allowed",
     "bg-primary-light",
     "text-white",
-    "border-0",
+    "border-2",
+    "border-primary-light",
   ].join(" "),
-  waiting: ["cursor-wait", "bg-primary-waiting", "text-white", "border-0"].join(
+  waiting: ["cursor-wait", "bg-primary-waiting", "text-white", "border-2"].join(
     " ",
   ),
 };
