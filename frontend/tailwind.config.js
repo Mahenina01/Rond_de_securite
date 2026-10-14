@@ -18,6 +18,7 @@ export default {
 
         background: "#EEEEEE",
         surface: "#FFFFFF",
+        input: "#F7F7F7",
 
         text: {
           primary: "#000000",
