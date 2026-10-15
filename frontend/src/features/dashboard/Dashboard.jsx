@@ -3,6 +3,7 @@ import WeeklyChart from "../../components/charts/WeeklyChart";
 import AlertLayout from "./layout/AlertLayout";
 import IconButton from "../../components/ui/IconButton";
 import TableLayout from "./layout/TableLayout";
+import agentCheckpoints from "./data/agentCheckPoint";
 
 const Dashboard = () => {
   return (
@@ -34,7 +35,7 @@ const Dashboard = () => {
           </div>
           <IconButton className="w-auto" isButton={true} text="Exporter logs" />
         </div>
-        <TableLayout />
+        <TableLayout data={agentCheckpoints} />
       </div>
     </div>
   );

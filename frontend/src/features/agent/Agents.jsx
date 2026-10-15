@@ -31,17 +31,14 @@ const Agents = () => {
     alert(`Modification de l'appareil : ${agent.name}`);
   };
 
-  // 3. Filtrage dynamique selon la recherche
   const filteredAgent = agent.filter(
     (device) =>
       device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       device.agentId.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // Formatage du compteur avec un zéro devant si < 10 (ex: 05)
   const formattedCount = String(filteredAgent.length).padStart(2, "0");
 
-  // 4. Configuration des colonnes du tableau (avec rendu personnalisé pour les clés et les actions)
   const agentColumns = [
     { header: "ID Agent", accessor: "idagent" },
     { header: "Nom Complet", accessor: "name" },
@@ -88,7 +85,7 @@ const Agents = () => {
       <h1 className="font-sans text-xl text-text-primary">
         Gestion des Agents
       </h1>
-      <div>
+      <div className="flex flex-row items-center justify-between w-full">
         <div className="w-full sm:w-[320px]">
           <Input
             variant="search"

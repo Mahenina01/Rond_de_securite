@@ -72,7 +72,7 @@ const Input = ({
           className={`
             w-full rounded-lg
             border border-text-muted
-            bg-surface px-4 py-4 text-sm
+            bg-surface px-4 py-3 text-sm
             outline-none transition
             placeholder:text-text-muted
             focus:border-primary focus:ring-2 focus:ring-blue-100

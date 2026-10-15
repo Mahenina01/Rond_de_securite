@@ -1,15 +1,12 @@
-import { useState } from "react";
-import agentCheckpoints from "../data/agentCheckPoint";
 import Xicon from "../../../assets/icons/x.svg?react";
 import CheckIcon from "../../../assets/icons/check-circle 1.svg?react";
 import DataTable from "../../../components/ui/DataTable";
 
-const TableLayout = () => {
-  const [logs] = useState(agentCheckpoints);
-
+const TableLayout = ({ data }) => {
   const checkpointColumns = [
     { header: "Date & heure", accessor: "dateHeure" },
-    { header: "ID Agents", accessor: "idAgents" },
+    { header: "ID Agent", accessor: "idAgents" },
+    { header: "Nom agent", accessor: "nomAgent" },
     { header: "Nom appareil", accessor: "nomAppareil" },
     { header: "Point de contrôle", accessor: "emplacement" },
     { header: "ID checkpoint", accessor: "idCheckpoint" },
@@ -29,7 +26,7 @@ const TableLayout = () => {
     },
   ];
 
-  return <DataTable columns={checkpointColumns} data={logs} />;
+  return <DataTable columns={checkpointColumns} data={data} />;
 };
 
 export default TableLayout;
