@@ -1,10 +1,10 @@
-import Input from "../../components/ui/Input";
-import IDeviceManagementPage from "./DeviceManagementPage"
+import IDeviceManagementPage from "./DeviceManagementPage";
 const Devices = () => {
   return (
-  <div>
+    <div>
       <IDeviceManagementPage />
-    </div>);
+    </div>
+  );
 };
 
 export default Devices;

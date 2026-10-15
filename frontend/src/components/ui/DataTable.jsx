@@ -31,12 +31,6 @@ export default function DataTable({ columns, data, onEdit, onDelete, onCopy }) {
                     key={colIndex}
                     className={`py-4 px-4 ${col.align === "right" ? "text-right" : ""}`}
                   >
-                    {/* 
-                                          LOGIQUE CLÉ : 
-                                          - Si la colonne possède une fonction 'render' personnalisée (ex: boutons d'action ou icône de copie), 
-                                            on l'exécute en lui passant la ligne entière et les fonctions de callback.
-                                          - Sinon, on affiche simplement la valeur brute de la propriété (ex: row.name).
-                                        */}
                     {col.render
                       ? col.render(row, { onEdit, onDelete, onCopy })
                       : row[col.accessor]}
