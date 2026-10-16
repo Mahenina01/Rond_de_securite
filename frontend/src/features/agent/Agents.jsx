@@ -4,6 +4,7 @@ import IconButton from "../../components/ui/IconButton";
 import AddIcon from "../../assets/icons/add.svg?react";
 import Delete from "../../assets/icons/delete.svg?react";
 import DataTable from "../../components/ui/DataTable";
+import AddAgentModal from "./AddAgentModal";
 
 const agentsList = [
   { id: 1, idagent: "AG-024", name: "Luca RJ", phone: "0347722626" },
@@ -22,13 +23,22 @@ const Agents = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [agent, setAgent] = useState(agentsList);
-
+  const [isModalOpen, setIsModalOpen]= useState(false);
   const handleDelete = (id) => {
     setAgent(agent.filter((device) => device.id !== id));
   };
 
   const handleEdit = (agent) => {
     alert(`Modification de l'appareil : ${agent.name}`);
+  };
+  const handleAddAgent =(newAgentData)=>{
+    const formattedNewAgent = {
+      id: Date.now(),
+      idagent: newAgentData.agent_code,
+      name: `${newAgentData.name} ${newAgentData.firstname || ""}`.trim(),
+      phone: newAgentData.phone || "Non renseigné",
+    };
+    setAgent([formattedNewAgent, ...agent]);
   };
 
   // 3. Filtrage dynamique selon la recherche
@@ -97,12 +107,17 @@ const Agents = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <IconButton isButton={true} iconSVG={AddIcon} text="Nouveau agents" />
+        <IconButton isButton={true} iconSVG={AddIcon} text="Nouveau agents" onClick={()=> setIsModalOpen(true)}/>
       </div>
       <div className="text-sm font-semibold text-gray-800">
         Résultats ({formattedCount})
       </div>
       <DataTable columns={agentColumns} data={filteredAgent} />
+      <AddAgentModal
+        isOpen={isModalOpen} 
+        onClose={()=>setIsModalOpen(false)}
+        onAddAgent={handleAddAgent}
+      />
     </div>
   );
 };
