@@ -3,9 +3,9 @@ const baseStyles = [
   "items-center",
   "justify-center",
   "gap-[10px]",
-  "rounded-[10px]",
-  "px-5",
-  "py-[15px]",
+  "rounded-lg",
+  "px-4",
+  "py-3",
   "text-sm",
   "font-semibold",
   "transition-colors",
@@ -29,11 +29,10 @@ const variants = {
 
   outline: [
     "bg-transparent",
-    "text-primary-outline",
-    "border-2",
-    "border-primary-outline",
-    "hover:bg-primary-light",
-    "hover:text-white",
+    "text-text-secondary",
+    "border",
+    "border-gray-300",
+    "hover:bg-gray-100",
   ].join(" "),
   disabled: [
     "cursor-not-allowed",

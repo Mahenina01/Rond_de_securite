@@ -6,20 +6,29 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
 
   const handleClickNotif = () => {
-    alert("Notification cliqué"); //TODO : show nofication
+    alert("Notification cliquée");
   };
+
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar fixe */}
+      <aside className="fixed inset-y-0 left-0 z-40 h-screen">
+        <Sidebar />
+      </aside>
 
-      <div className="flex flex-col flex-1 min-w-0">
-        <Navbar
-          notificationCount={28}
-          onProfileClick={() => navigate("/settings")}
-          onNotifClick={handleClickNotif}
-        />
+      {/* Contenu principal */}
+      <div className="flex flex-col flex-1 h-screen min-w-0 ml-0 overflow-hidden md:ml-64">
+        {/* Navbar fixe en haut */}
+        <header className="sticky top-0 z-30 shrink-0 bg-background">
+          <Navbar
+            notificationCount={28}
+            onProfileClick={() => navigate("/settings")}
+            onNotifClick={handleClickNotif}
+          />
+        </header>
 
-        <main className="flex-1 p-6">
+        {/* Seul le contenu de la page défile */}
+        <main className="flex-1 min-h-0 p-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>
