@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Input from "../../components/ui/Input";
 import IconButton from "../../components/ui/IconButton";
 import AddIcon from "../../assets/icons/add.svg?react";
@@ -7,33 +7,77 @@ import DataTable from "../../components/ui/DataTable";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
 import UserIcon from "../../assets/icons/user-round-plus.svg?react";
-
-const initialAgents = [
-  { id: 1, idagent: "AG-024", name: "Luca RJ", phone: "0347722626" },
-  { id: 2, idagent: "AG-043", name: "Jhon Doe", phone: "0335363666" },
-  { id: 3, idagent: "AG-054", name: "Henri Rakoto", phone: "0317736256" },
-  { id: 4, idagent: "AG-055", name: "Henri Razafy", phone: "0342416424" },
-  { id: 5, idagent: "AG-0541", name: "Feno Hery", phone: "0342254253" },
-  { id: 6, idagent: "AG-056", name: "Mialy Soa", phone: "0321145678" },
-  { id: 7, idagent: "AG-057", name: "Tiana Rabe", phone: "0339876543" },
-  { id: 8, idagent: "AG-058", name: "Andry Lova", phone: "0341234567" },
-  { id: 9, idagent: "AG-059", name: "Nirina Kanto", phone: "0328901234" },
-  { id: 10, idagent: "AG-060", name: "Hery Zo", phone: "0334567890" },
-];
+import agentsService from "../../service/agentsService";
+import toast from "react-hot-toast";
 
 const emptyForm = {
-  idagent: "",
-  nom: "",
-  prenoms: "",
+  agentCode: "",
+  name: "",
   phone: "",
 };
 
+const getErrorMessage = (error, fallback) =>
+  error.response?.data?.message || error.response?.data?.detail || fallback;
+
 const Agents = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agents, setAgents] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [agents, setAgents] = useState(initialAgents);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(null);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Charger les agents depuis le backend
+  const loadAgents = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const data = await agentsService.getAll();
+
+      // Prend en charge une liste directe ou une réponse contenant content/data.
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data?.data)
+            ? data.data
+            : null;
+
+      if (!list) {
+        throw new Error("Le backend n'a pas renvoyé une liste d'agents.");
+      }
+
+      setAgents(list);
+    } catch (error) {
+      console.error("Erreur de chargement des agents :", error);
+      toast.error(getErrorMessage(error, "Impossible de charger les agents."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAgents();
+  }, [loadAgents]);
+
+  const resetForm = () => {
+    setFormData(emptyForm);
+    setFormError("");
+    setEditingAgent(null);
+  };
+
+  const handleCloseModal = () => {
+    if (submitting) return;
+
+    setIsModalOpen(false);
+    resetForm();
+  };
 
   const handleChangeFor = (name) => (valueOrEvent) => {
     const value =
@@ -49,78 +93,173 @@ const Agents = () => {
     setFormError("");
   };
 
-  const resetForm = () => {
-    setFormData(emptyForm);
-    setFormError("");
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  // Ouvrir le formulaire en mode création
+  const handleOpenCreate = () => {
     resetForm();
+    setIsModalOpen(true);
   };
 
-  const handleConfirm = () => {
-    const idagent = formData.idagent.trim().toUpperCase();
-    const nom = formData.nom.trim();
-    const prenoms = formData.prenoms.trim();
-    const phone = formData.phone.trim();
+  // Ouvrir le formulaire en mode modification
+  const handleEdit = (agent) => {
+    setEditingAgent(agent);
 
-    if (!idagent || !nom) {
-      setFormError("Le matricule et le nom sont obligatoires.");
+    setFormData({
+      agentCode: agent.agentCode ?? "",
+      name: agent.name ?? "",
+      phone: agent.phone ?? "",
+    });
+
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  // Créer ou modifier un agent
+  const handleConfirm = async () => {
+    const payload = {
+      agentCode: formData.agentCode.trim().toUpperCase(),
+      name: formData.name.trim(),
+      phone: formData.phone.trim(),
+    };
+
+    if (!payload.agentCode || !payload.name) {
+      setFormError("Le matricule et le nom complet sont obligatoires.");
       return;
     }
 
-    const alreadyExists = agents.some(
-      (agent) => agent.idagent.toLowerCase() === idagent.toLowerCase(),
+    const duplicate = agents.some(
+      (agent) =>
+        agent.agentCode?.toLowerCase() === payload.agentCode.toLowerCase() &&
+        agent.id !== editingAgent?.id,
     );
 
-    if (alreadyExists) {
+    if (duplicate) {
       setFormError("Ce matricule existe déjà.");
       return;
     }
 
-    const newAgent = {
-      id:
-        agents.length > 0
-          ? Math.max(...agents.map((agent) => agent.id)) + 1
-          : 1,
-      idagent,
-      name: [nom, prenoms].filter(Boolean).join(" "),
-      phone,
-    };
+    setSubmitting(true);
 
-    setAgents((previous) => [...previous, newAgent]);
-    setSearchQuery("");
-    handleCloseModal();
+    try {
+      if (editingAgent) {
+        await agentsService.update(editingAgent.id, {
+          ...payload,
+          isActive: editingAgent.isActive,
+        });
+
+        toast.success("Agent modifié avec succès.");
+      } else {
+        await agentsService.create({
+          ...payload,
+          isActive: true,
+        });
+
+        toast.success("Agent créé avec succès.");
+      }
+
+      setIsModalOpen(false);
+      resetForm();
+      await loadAgents();
+    } catch (error) {
+      console.error("Erreur d'enregistrement de l'agent :", error);
+
+      const message = getErrorMessage(
+        error,
+        editingAgent
+          ? "Impossible de modifier cet agent."
+          : "Impossible de créer cet agent.",
+      );
+
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleDelete = (id) => {
-    setAgents((previous) => previous.filter((agent) => agent.id !== id));
+  // Supprimer un agent
+  const openDeleteModal = (agent) => {
+    setSelectedAgent(agent);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleEdit = (agent) => {
-    alert(`Modification de l'agent : ${agent.name}`);
+  const closeDeleteModal = () => {
+    if (deleting) return;
+
+    setIsDeleteModalOpen(false);
+    setSelectedAgent(null);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAgent || deleting) return;
+
+    setDeleting(true);
+
+    try {
+      await agentsService.delete(selectedAgent.id);
+
+      setAgents((previous) =>
+        previous.filter((agent) => agent.id !== selectedAgent.id),
+      );
+
+      toast.success("Agent supprimé avec succès.");
+      setIsDeleteModalOpen(false);
+      setSelectedAgent(null);
+    } catch (error) {
+      console.error("Erreur de suppression :", error);
+
+      toast.error(getErrorMessage(error, "Impossible de supprimer cet agent."));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  const filteredAgent = agents.filter((agent) =>
-    [agent.name, agent.idagent, agent.phone].some((field) =>
+  const filteredAgents = agents.filter((agent) =>
+    [
+      agent.agentCode,
+      agent.name,
+      agent.phone,
+      agent.isActive ? "actif" : "inactif",
+    ].some((field) =>
       String(field ?? "")
         .toLowerCase()
         .includes(normalizedQuery),
     ),
   );
 
-  const formattedCount = String(filteredAgent.length).padStart(2, "0");
+  const formattedCount = String(filteredAgents.length).padStart(2, "0");
 
   const isFormValid =
-    formData.idagent.trim().length > 0 && formData.nom.trim().length > 0;
+    formData.agentCode.trim().length > 0 && formData.name.trim().length > 0;
 
   const agentColumns = [
-    { header: "ID Agent", accessor: "idagent" },
-    { header: "Nom Complet", accessor: "name" },
-    { header: "Téléphone", accessor: "phone" },
+    {
+      header: "ID Agent",
+      accessor: "agentCode",
+    },
+    {
+      header: "Nom complet",
+      accessor: "name",
+    },
+    {
+      header: "Téléphone",
+      accessor: "phone",
+    },
+    {
+      header: "Statut",
+      render: (row) => (
+        <span
+          className={
+            row.isActive
+              ? "text-sm font-medium text-success"
+              : "text-sm font-medium text-danger"
+          }
+        >
+          {row.isActive ? "Actif" : "Inactif"}
+        </span>
+      ),
+    },
     {
       header: "Actions",
       align: "right",
@@ -131,6 +270,7 @@ const Agents = () => {
             onClick={() => handleEdit(row)}
             className="text-gray-500 transition-colors hover:text-blue-600"
             title="Modifier"
+            aria-label={`Modifier ${row.name}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -150,9 +290,10 @@ const Agents = () => {
 
           <button
             type="button"
-            onClick={() => handleDelete(row.id)}
+            onClick={() => openDeleteModal(row)}
             className="text-red-500 transition-colors hover:text-red-700"
             title="Supprimer"
+            aria-label={`Supprimer ${row.name}`}
           >
             <Delete className="w-4 h-4 text-danger" />
           </button>
@@ -167,7 +308,7 @@ const Agents = () => {
         Gestion des Agents
       </h1>
 
-      <div className="flex flex-row items-center justify-between w-full gap-4">
+      <div className="flex flex-col items-start justify-between w-full gap-4 sm:flex-row sm:items-center">
         <div className="w-full sm:w-[320px]">
           <Input
             variant="search"
@@ -176,7 +317,9 @@ const Agents = () => {
             value={searchQuery}
             onChange={(value) => {
               setSearchQuery(
-                typeof value === "string" ? value : value.target.value,
+                typeof value === "string"
+                  ? value
+                  : (value?.target?.value ?? ""),
               );
             }}
           />
@@ -186,95 +329,131 @@ const Agents = () => {
           isButton={true}
           iconSVG={AddIcon}
           text="Nouvel agent"
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleOpenCreate}
         />
-
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          title="Ajout d'un nouvel agent"
-          IconTitle={UserIcon}
-          footer={
-            <>
-              <Button
-                type="button"
-                onClick={handleCloseModal}
-                variant="outline"
-              >
-                Annuler
-              </Button>
-
-              <Button
-                type="button"
-                onClick={handleConfirm}
-                variant="primary"
-                disabled={!isFormValid}
-              >
-                Ajouter
-              </Button>
-            </>
-          }
-        >
-          <div className="flex flex-col gap-3">
-            <p className="font-sans text-sm text-text-secondary">
-              Renseignez les informations nécessaires pour créer la fiche de
-              l'agent et faciliter son identification.
-            </p>
-
-            <Input
-              variant="default"
-              label="Matricule de l'agent"
-              placeholder="Ex. : AG-061"
-              name="idagent"
-              value={formData.idagent}
-              onChange={handleChangeFor("idagent")}
-              required={true}
-            />
-
-            <Input
-              variant="default"
-              label="Nom"
-              placeholder="Saisissez le nom de famille"
-              name="nom"
-              value={formData.nom}
-              onChange={handleChangeFor("nom")}
-              required={true}
-            />
-
-            <Input
-              variant="default"
-              label="Prénom(s) (facultatif)"
-              placeholder="Saisissez le ou les prénoms"
-              name="prenoms"
-              value={formData.prenoms}
-              onChange={handleChangeFor("prenoms")}
-              required={false}
-            />
-
-            <Input
-              variant="default"
-              label="Téléphone (facultatif)"
-              placeholder="Ex. : 0341234567"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChangeFor("phone")}
-              required={false}
-            />
-
-            {formError && (
-              <p className="text-sm text-danger" role="alert">
-                {formError}
-              </p>
-            )}
-          </div>
-        </Modal>
       </div>
 
       <div className="text-sm font-semibold text-gray-800">
         Résultats ({formattedCount})
       </div>
 
-      <DataTable columns={agentColumns} data={filteredAgent} />
+      {loading ? (
+        <p className="py-6 text-sm text-text-secondary">
+          Chargement des agents...
+        </p>
+      ) : (
+        <DataTable columns={agentColumns} data={filteredAgents} />
+      )}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title={editingAgent ? "Modifier un agent" : "Ajout d'un nouvel agent"}
+        IconTitle={UserIcon}
+        footer={
+          <>
+            <Button
+              type="button"
+              onClick={handleCloseModal}
+              variant="outline"
+              disabled={submitting}
+            >
+              Annuler
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              variant="primary"
+              disabled={!isFormValid || submitting}
+            >
+              {submitting
+                ? "Enregistrement..."
+                : editingAgent
+                  ? "Enregistrer"
+                  : "Ajouter"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="font-sans text-sm text-text-secondary">
+            Renseignez les informations nécessaires pour créer ou modifier la
+            fiche de l'agent.
+          </p>
+
+          <Input
+            variant="default"
+            label="Matricule de l'agent"
+            placeholder="Ex. : AG-061"
+            name="agentCode"
+            value={formData.agentCode}
+            onChange={handleChangeFor("agentCode")}
+            required
+          />
+
+          <Input
+            variant="default"
+            label="Nom complet"
+            placeholder="Ex. : Rakoto Jean"
+            name="name"
+            value={formData.name}
+            onChange={handleChangeFor("name")}
+            required
+          />
+
+          <Input
+            variant="default"
+            label="Téléphone (facultatif)"
+            placeholder="Ex. : 0341234567"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChangeFor("phone")}
+          />
+
+          {formError && (
+            <p className="text-sm text-danger" role="alert">
+              {formError}
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        title={"Confirmer la suppression"}
+        IconTitle={UserIcon}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeDeleteModal}
+              disabled={deleting}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Annuler
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 text-sm text-white rounded-lg bg-danger disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleting ? "Suppression..." : "Supprimer"}
+            </button>
+          </>
+        }
+      >
+        <p className="py-4 text-sm text-text-secondary">
+          Êtes-vous sûr de vouloir supprimer{" "}
+          {selectedAgent?.name
+            ? `l'agent ${selectedAgent?.name}`
+            : "cet élément"}{" "}
+          ? Cette action est irréversible.
+        </p>
+      </Modal>
     </div>
   );
 };

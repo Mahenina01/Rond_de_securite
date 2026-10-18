@@ -1,7 +1,9 @@
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import IconButton from "../ui/IconButton";
 import LogOutButton from "../ui/LogOutButton";
 import logo from "../../assets/images/logo.jpg";
+import authService from "../../service/authService";
+import toast from "react-hot-toast";
 
 const navigationItems = [
   { variant: "dashboard", label: "Tableau de bord", to: "/dashboard" },
@@ -13,9 +15,20 @@ const navigationItems = [
 ];
 
 const SideBar = () => {
-  const handleLogout = () => {
-    // TODO: Ajouter ici la logique réelle de déconnexion.
-    console.log("Déconnexion");
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      toast.success("Déconnexion réussie.");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+
+      toast.error(
+        error.response?.data?.message || "Erreur lors de la déconnexion.",
+      );
+    } finally {
+      navigate("/signin", { replace: true });
+    }
   };
 
   return (
@@ -38,7 +51,7 @@ const SideBar = () => {
               `rounded-lg ${isActive ? "bg-primary/10 text-primary" : ""}`
             }
           >
-            <IconButton variant={item.variant} onClick={() => {}} />
+            <IconButton variant={item.variant} />
           </NavLink>
         ))}
       </nav>

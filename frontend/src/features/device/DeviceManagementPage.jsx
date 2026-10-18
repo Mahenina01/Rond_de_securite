@@ -1,32 +1,98 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import DataTable from "../../components/ui/DataTable";
 import Delete from "../../assets/icons/delete.svg?react";
 import Modal from "../../components/ui/Modal";
 import DeviceIcon from "../../assets/icons/device-out.svg?react";
-
-const initialDevices = [
-  { id: 1, name: "PN-02", agentId: "AG-02", key: "key-******" },
-  { id: 2, name: "PN-03", agentId: "AG-03", key: "key-******" },
-  { id: 3, name: "PN-04", agentId: "AG-04", key: "key-******" },
-  { id: 4, name: "PN-05", agentId: "AG-05", key: "key-******" },
-  { id: 5, name: "PN-06", agentId: "AG-06", key: "key-******" },
-];
+import devicesService from "../../service/devciesService";
+import toast from "react-hot-toast";
 
 const emptyForm = {
-  name: "",
-  agentId: "",
+  deviceCode: "",
+  nameAgent: "",
+};
+
+const getErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.detail ||
+  error?.message ||
+  fallback;
+
+const getResponseList = (response) => {
+  const data = response?.data ?? response;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.content)) return data.data.content;
+
+  return null;
 };
 
 export default function DeviceManagementPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [devices, setDevices] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [devices, setDevices] = useState(initialDevices);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
 
-  // Gestion des champs du formulaire
+  const [editingDevice, setEditingDevice] = useState(null);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+
+  // Charger les appareils depuis le backend
+  const loadDevices = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const response = await devicesService.getAll();
+      const list = getResponseList(response);
+
+      if (!list) {
+        throw new Error(
+          "Le serveur n'a pas renvoyé une liste valide d'appareils.",
+        );
+      }
+
+      setDevices(list);
+    } catch (error) {
+      console.error("Erreur de chargement des appareils :", error);
+
+      toast.error(
+        getErrorMessage(error, "Impossible de charger les appareils."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDevices();
+  }, [loadDevices]);
+
+  // Réinitialiser le formulaire
+  const resetForm = () => {
+    setFormData(emptyForm);
+    setFormError("");
+    setEditingDevice(null);
+  };
+
+  // Fermer le formulaire
+  const handleCloseModal = () => {
+    if (submitting) return;
+
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  // Gérer les champs du formulaire
   const handleChangeFor = (name) => (valueOrEvent) => {
     const value =
       typeof valueOrEvent === "string"
@@ -41,121 +107,176 @@ export default function DeviceManagementPage() {
     setFormError("");
   };
 
-  // Réinitialisation et fermeture du formulaire
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setFormData(emptyForm);
-    setFormError("");
+  // Ouvrir le formulaire de création
+  const handleOpenCreate = () => {
+    resetForm();
+    setIsModalOpen(true);
   };
 
-  // Ajout d'un nouvel appareil
-  const handleConfirm = () => {
-    const name = formData.name.trim().toUpperCase();
-    const agentId = formData.agentId.trim().toUpperCase();
+  // Ouvrir le formulaire de modification
+  const handleEdit = (device) => {
+    setEditingDevice(device);
 
-    if (!name || !agentId) {
-      setFormError("Veuillez remplir tous les champs obligatoires.");
-      return;
-    }
+    setFormData({
+      deviceCode: device.deviceCode ?? "",
+      nameAgent: device.nameAgent ?? "",
+    });
 
-    const deviceExists = devices.some(
-      (device) => device.name.toLowerCase() === name.toLowerCase(),
-    );
+    setFormError("");
+    setIsModalOpen(true);
+  };
 
-    if (deviceExists) {
-      setFormError("Un appareil avec cet identifiant existe déjà.");
-      return;
-    }
+  // Créer ou modifier un appareil
+  const handleConfirm = async () => {
+    if (submitting) return;
 
-    const newDevice = {
-      id:
-        devices.length > 0
-          ? Math.max(...devices.map((device) => device.id)) + 1
-          : 1,
-      name,
-      agentId,
-      key: "key-******",
+    const payload = {
+      deviceCode: formData.deviceCode.trim().toUpperCase(),
+      nameAgent: formData.nameAgent.trim(),
     };
 
-    setDevices((previous) => [...previous, newDevice]);
+    if (!payload.deviceCode || !payload.nameAgent) {
+      setFormError(
+        "Le code de l'appareil et le nom de l'agent sont obligatoires.",
+      );
+      return;
+    }
 
-    handleCloseModal();
-  };
+    // Vérifier les doublons dans la liste chargée
+    const duplicate = devices.some(
+      (device) =>
+        device.deviceCode?.toLowerCase() === payload.deviceCode.toLowerCase() &&
+        device.id !== editingDevice?.id,
+    );
 
-  // Copie de la clé
-  const handleCopyKey = async (keyVal) => {
+    if (duplicate) {
+      setFormError("Ce code appareil existe déjà.");
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError("");
+
+    // Conserver le statut existant en modification
+    /*const devicePayload = {
+      ...payload,
+      isActive: editingDevice ? editingDevice.isActive : true,
+    };*/
+
     try {
-      await navigator.clipboard.writeText(keyVal);
-      alert(`Clé copiée : ${keyVal}`);
-    } catch {
-      alert("Impossible de copier la clé.");
+      if (editingDevice) {
+        await devicesService.update(editingDevice.id, payload);
+        toast.success("Appareil modifié avec succès.");
+      } else {
+        await devicesService.create(payload);
+        toast.success("Appareil créé avec succès.");
+      }
+
+      setIsModalOpen(false);
+      resetForm();
+
+      await loadDevices();
+    } catch (error) {
+      console.error("Erreur d'enregistrement de l'appareil :", error);
+
+      const message = getErrorMessage(
+        error,
+        editingDevice
+          ? "Impossible de modifier cet appareil."
+          : "Impossible de créer cet appareil.",
+      );
+
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Suppression d'un appareil
-  const handleDelete = (id) => {
-    setDevices((previous) => previous.filter((device) => device.id !== id));
+  // Ouvrir la confirmation de suppression
+  const openDeleteModal = (device) => {
+    setSelectedDevice(device);
+    setIsDeleteModalOpen(true);
   };
 
-  // Modification d'un appareil
-  const handleEdit = (device) => {
-    alert(`Modification de l'appareil : ${device.name}`);
+  // Fermer la confirmation de suppression
+  const closeDeleteModal = () => {
+    if (deleting) return;
+
+    setIsDeleteModalOpen(false);
+    setSelectedDevice(null);
   };
 
-  // Recherche dynamique
-  const filteredDevices = devices.filter((device) => {
-    const query = searchQuery.trim().toLowerCase();
+  // Supprimer un appareil
+  const handleDelete = async () => {
+    if (!selectedDevice || deleting) return;
 
-    return (
-      device.name.toLowerCase().includes(query) ||
-      device.agentId.toLowerCase().includes(query)
-    );
-  });
+    setDeleting(true);
+
+    try {
+      await devicesService.delete(selectedDevice.id);
+
+      setDevices((previous) =>
+        previous.filter((device) => device.id !== selectedDevice.id),
+      );
+
+      toast.success("Appareil supprimé avec succès.");
+
+      setIsDeleteModalOpen(false);
+      setSelectedDevice(null);
+    } catch (error) {
+      console.error("Erreur de suppression de l'appareil :", error);
+
+      toast.error(
+        getErrorMessage(error, "Impossible de supprimer cet appareil."),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Recherche par code appareil, agent ou statut
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredDevices = devices.filter((device) =>
+    [
+      device.deviceCode,
+      device.agentCode,
+      device.isActive ? "actif" : "inactif",
+    ].some((field) =>
+      String(field ?? "")
+        .toLowerCase()
+        .includes(normalizedQuery),
+    ),
+  );
 
   const formattedCount = String(filteredDevices.length).padStart(2, "0");
 
   const isFormValid =
-    formData.name.trim() !== "" && formData.agentId.trim() !== "";
+    formData.deviceCode.trim() !== "" && formData.nameAgent.trim() !== "";
 
-  // Configuration des colonnes
+  // Colonnes du tableau
   const deviceColumns = [
     {
-      header: "Nom appareil",
-      accessor: "name",
+      header: "Code appareil",
+      accessor: "deviceCode",
     },
     {
-      header: "ID Agents",
-      accessor: "agentId",
+      header: "Matricule agent",
+      accessor: "agentCode",
     },
     {
-      header: "Clés",
+      header: "Statut",
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <span>{row.key}</span>
-
-          <button
-            type="button"
-            onClick={() => handleCopyKey(row.key)}
-            className="text-gray-400 hover:text-gray-700 focus:outline-none"
-            title="Copier la clé"
-            aria-label={`Copier la clé de ${row.name}`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-          </button>
-        </div>
+        <span
+          className={
+            row.isActive
+              ? "text-sm font-medium text-success"
+              : "text-sm font-medium text-danger"
+          }
+        >
+          {row.isActive ? "Actif" : "Inactif"}
+        </span>
       ),
     },
     {
@@ -168,7 +289,7 @@ export default function DeviceManagementPage() {
             onClick={() => handleEdit(row)}
             className="text-gray-500 transition-colors hover:text-blue-600"
             title="Modifier"
-            aria-label={`Modifier ${row.name}`}
+            aria-label={`Modifier ${row.deviceCode}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -188,10 +309,10 @@ export default function DeviceManagementPage() {
 
           <button
             type="button"
-            onClick={() => handleDelete(row.id)}
+            onClick={() => openDeleteModal(row)}
             className="text-red-500 transition-colors hover:text-red-700"
             title="Supprimer"
-            aria-label={`Supprimer ${row.name}`}
+            aria-label={`Supprimer ${row.deviceCode}`}
           >
             <Delete className="w-4 h-4 text-danger" />
           </button>
@@ -209,28 +330,68 @@ export default function DeviceManagementPage() {
         </h2>
 
         <Button
+          type="button"
           variant="primary"
-          onClick={() => {
-            setFormData(emptyForm);
-            setFormError("");
-            setIsModalOpen(true);
-          }}
+          onClick={handleOpenCreate}
           className="gap-2 text-sm"
         >
           <span className="text-lg leading-none">+</span>
-          Nouveau appareil
+          Nouvel appareil
         </Button>
       </div>
 
-      {/* Modal d'ajout */}
+      {/* Recherche */}
+      <div className="w-full sm:w-[320px]">
+        <Input
+          variant="search"
+          placeholder="Rechercher un appareil..."
+          name="searchQuery"
+          value={searchQuery}
+          onChange={(valueOrEvent) => {
+            const value =
+              typeof valueOrEvent === "string"
+                ? valueOrEvent
+                : (valueOrEvent?.target?.value ?? "");
+
+            setSearchQuery(value);
+          }}
+        />
+      </div>
+
+      {/* Compteur */}
+      <div className="text-sm font-semibold text-gray-800">
+        Résultats ({formattedCount})
+      </div>
+
+      {/* Tableau */}
+      {loading ? (
+        <p className="py-6 text-sm text-text-secondary">
+          Chargement des appareils...
+        </p>
+      ) : filteredDevices.length > 0 ? (
+        <DataTable columns={deviceColumns} data={filteredDevices} />
+      ) : (
+        <p className="py-8 text-sm text-center text-text-secondary">
+          {searchQuery.trim()
+            ? "Aucun appareil ne correspond à votre recherche."
+            : "Aucun appareil enregistré."}
+        </p>
+      )}
+
+      {/* Modal de création et de modification */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title="Ajout d'un appareil"
+        title={editingDevice ? "Modifier un appareil" : "Ajout d'un appareil"}
         IconTitle={DeviceIcon}
         footer={
           <>
-            <Button type="button" onClick={handleCloseModal} variant="outline">
+            <Button
+              type="button"
+              onClick={handleCloseModal}
+              variant="outline"
+              disabled={submitting}
+            >
               Annuler
             </Button>
 
@@ -238,36 +399,40 @@ export default function DeviceManagementPage() {
               type="button"
               onClick={handleConfirm}
               variant="primary"
-              disabled={!isFormValid}
+              disabled={!isFormValid || submitting}
             >
-              Ajouter
+              {submitting
+                ? "Enregistrement..."
+                : editingDevice
+                  ? "Enregistrer"
+                  : "Ajouter"}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          <p className="font-sans text-sm font-normal text-text-secondary">
-            Enregistrez un appareil et associez-le à un agent pour assurer le
-            suivi de ses rondes de sécurité.
+          <p className="font-sans text-sm text-text-secondary">
+            Enregistrez un appareil et associez-le à un agent responsable des
+            rondes de sécurité.
           </p>
 
           <Input
             variant="default"
-            label="ID de l'appareil"
-            name="name"
+            label="Code de l'appareil"
+            name="deviceCode"
             placeholder="Ex. : PN-001"
-            value={formData.name}
-            onChange={handleChangeFor("name")}
+            value={formData.deviceCode}
+            onChange={handleChangeFor("deviceCode")}
             required
           />
 
           <Input
             variant="default"
-            label="Agent responsable"
-            name="agentId"
-            placeholder="Ex. : AG-001"
-            value={formData.agentId}
-            onChange={handleChangeFor("agentId")}
+            label="Nom de l'agent"
+            name="nameAgent"
+            placeholder="Ex. : Jean Doe"
+            value={formData.nameAgent}
+            onChange={handleChangeFor("nameAgent")}
             required
           />
 
@@ -279,29 +444,40 @@ export default function DeviceManagementPage() {
         </div>
       </Modal>
 
-      {/* Recherche */}
-      <div className="w-full sm:w-[320px]">
-        <Input
-          variant="search"
-          placeholder="Recherche..."
-          value={searchQuery}
-          onChange={(valueOrEvent) =>
-            setSearchQuery(
-              typeof valueOrEvent === "string"
-                ? valueOrEvent
-                : (valueOrEvent?.target?.value ?? ""),
-            )
-          }
-        />
-      </div>
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        title="Confirmer la suppression"
+        IconTitle={DeviceIcon}
+        footer={
+          <>
+            <Button
+              type="button"
+              onClick={closeDeleteModal}
+              variant="outline"
+              disabled={deleting}
+            >
+              Annuler
+            </Button>
 
-      {/* Compteur */}
-      <div className="text-sm font-semibold text-gray-800">
-        Résultats ({formattedCount})
-      </div>
-
-      {/* Tableau */}
-      <DataTable columns={deviceColumns} data={filteredDevices} />
+            <Button
+              type="button"
+              onClick={handleDelete}
+              variant="primary"
+              disabled={deleting}
+            >
+              {deleting ? "Suppression..." : "Supprimer"}
+            </Button>
+          </>
+        }
+      >
+        <p className="py-4 text-sm text-text-secondary">
+          Êtes-vous sûr de vouloir supprimer l'appareil{" "}
+          <strong>{selectedDevice?.deviceCode ?? ""}</strong>? Cette action est
+          irréversible.
+        </p>
+      </Modal>
     </div>
   );
 }

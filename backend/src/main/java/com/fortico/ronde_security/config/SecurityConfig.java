@@ -1,4 +1,3 @@
-
 package com.fortico.ronde_security.config;
 
 import java.util.List;
@@ -91,7 +90,7 @@ public class SecurityConfig {
     CorsConfiguration configuration = new CorsConfiguration();
 
     configuration.setAllowedOrigins(
-        List.of("http://localhost:5173"));
+        List.of("http://localhost:5173/"));
 
     configuration.setAllowedMethods(List.of(
         "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import bgImage from "../../assets/images/img-login.jpg";
+import bgImage from "../../assets/images/img-login.avif";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import { useNavigate } from "react-router";
+import authService from "../../service/authService";
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const SignIn = () => {
   });
 
   const [formError, setFormError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Gestion des champs du formulaire
   const handleChangeFor = (name) => (valueOrEvent) => {
@@ -29,29 +31,44 @@ const SignIn = () => {
     setFormError("");
   };
 
-  // Vérifier si le formulaire est valide
+  // Validation du formulaire
   const isFormValid =
     formData.username.trim() !== "" && formData.password.trim() !== "";
 
   // Gestion de la connexion
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!isFormValid) {
+    if (!isFormValid || isLoading) {
       setFormError("Veuillez renseigner tous les champs obligatoires.");
       return;
     }
 
     setFormError("");
+    setIsLoading(true);
 
-    // À remplacer par un appel à l'API Spring Boot
-    console.log("Données de connexion :", {
-      username: formData.username.trim(),
-      password: formData.password,
-    });
+    try {
+      const response = await authService.login({
+        username: formData.username.trim(),
+        password: formData.password,
+      });
 
-    // Navigation temporaire, sans authentification réelle
-    navigate("/");
+      console.log("Connexion réussie :", response);
+      navigate("/");
+    } catch (error) {
+      const status = error.response?.status;
+
+      if (status === 401 || status === 403) {
+        setFormError("Nom d'utilisateur ou mot de passe incorrect.");
+      } else {
+        setFormError(
+          error.response?.data?.message ||
+            "Impossible de se connecter au serveur. Veuillez réessayer.",
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -61,7 +78,7 @@ const SignIn = () => {
         backgroundImage: `url("${bgImage}")`,
       }}
     >
-      <h1 className="hidden text-[80px] text-text-primary lg:block font-['Salsa',_sans-serif]">
+      <h1 className="hidden font-['Salsa',_sans-serif] text-[80px] text-text-primary lg:block">
         Ronde de sécurité mobile
       </h1>
 
@@ -115,10 +132,10 @@ const SignIn = () => {
           <Button
             type="submit"
             variant="primary"
-            disabled={!isFormValid}
+            disabled={!isFormValid || isLoading}
             className="w-full"
           >
-            Se connecter
+            {isLoading ? "Connexion en cours..." : "Se connecter"}
           </Button>
         </form>
       </div>

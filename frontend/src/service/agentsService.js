@@ -1,34 +1,39 @@
 import api from "../api/axios";
 import endpoints from "../api/endpoints";
 
-const agentService = {
-  getAll(params = {}) {
-    return api.get(endpoints.agents.list, { params });
+const agentsService = {
+  getAll: async (params = {}) => {
+    const response = await api.get(endpoints.agents.list, { params });
+    return response.data;
   },
 
-  getById(id) {
-    return api.get(endpoints.agents.detail(id));
+  getById: async (id) => {
+    const response = await api.get(endpoints.agents.detail(id));
+    return response.data;
   },
 
-  create(data) {
-    return api.post(endpoints.agents.create, data);
+  create: async (agentData) => {
+    const response = await api.post(endpoints.agents.create, agentData);
+    return response.data;
   },
 
-  update(id, data) {
-    return api.patch(endpoints.agents.detail(id), data);
+  update: async (id, agentData) => {
+    const response = await api.patch(endpoints.agents.update(id), agentData);
+    return response.data;
   },
 
-  delete(id) {
-    return api.delete(endpoints.agents.detail(id));
+  updateStatus: async (id, statusData) => {
+    const response = await api.patch(
+      endpoints.agents.updateStatus(id),
+      statusData,
+    );
+    return response.data;
   },
 
-  getLogs(id, params = {}) {
-    return api.get(endpoints.agents.logs(id), { params });
-  },
-
-  getAlerts(id, params = {}) {
-    return api.get(endpoints.agents.alerts(id), { params });
+  delete: async (id) => {
+    const response = await api.delete(endpoints.agents.delete(id));
+    return response.data;
   },
 };
 
-export default agentService;
+export default agentsService;
