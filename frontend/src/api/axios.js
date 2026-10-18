@@ -2,7 +2,7 @@ import axios from "axios";
 import tokenService from "../service/tokenService";
 
 const api = axios.create({
-  baseURL: import.meta.env.API_BASE_URL || "http://localhost:8022/api/v1",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8022/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
