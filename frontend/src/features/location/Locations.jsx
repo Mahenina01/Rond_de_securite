@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 const emptyForm = {
   checkpointCode: "",
   name: "",
-  agentId: "",
+  agentName: "",
 };
 
 const getErrorMessage = (error, fallback) =>
@@ -123,10 +123,7 @@ const Locations = () => {
     setFormData({
       checkpointCode: checkpoint.checkpointCode ?? "",
       name: checkpoint.name ?? "",
-      agentId:
-        checkpoint.agentId !== null && checkpoint.agentId !== undefined
-          ? String(checkpoint.agentId)
-          : "",
+      agentName: checkpoint.agent?.name ?? checkpoint.agentName ?? "",
     });
 
     setFormError("");
@@ -138,19 +135,13 @@ const Locations = () => {
     if (submitting) return;
 
     const checkpointCode = formData.checkpointCode.trim().toUpperCase();
-
     const name = formData.name.trim();
-    const agentId = Number(formData.agentId);
+    const agentName = formData.agentName.trim();
 
-    if (!checkpointCode || !name || !formData.agentId.trim()) {
+    if (!checkpointCode || !name || !agentName) {
       setFormError(
-        "Le code, le nom et l'identifiant de l'agent sont obligatoires.",
+        "Le code, le nom du point et le nom de l'agent sont obligatoires.",
       );
-      return;
-    }
-
-    if (!Number.isInteger(agentId) || agentId <= 0) {
-      setFormError("L'identifiant de l'agent doit être un entier positif.");
       return;
     }
 
@@ -166,11 +157,11 @@ const Locations = () => {
       return;
     }
 
-    // Respecter exactement le format attendu par l'API.
+    // Format attendu par l'API
     const payload = {
       checkpointCode,
       name,
-      agentId,
+      agentName,
     };
 
     setSubmitting(true);
@@ -179,11 +170,9 @@ const Locations = () => {
     try {
       if (editingCheckpoint) {
         await locationsService.update(editingCheckpoint.id, payload);
-
         toast.success("Point de contrôle modifié avec succès.");
       } else {
         await locationsService.create(payload);
-
         toast.success("Point de contrôle créé avec succès.");
       }
 
@@ -259,7 +248,8 @@ const Locations = () => {
     [
       checkpoint.checkpointCode,
       checkpoint.name,
-      checkpoint.agentId,
+      checkpoint.agent?.name,
+      checkpoint.agent?.agentCode,
       checkpoint.isActive ? "actif" : "inactif",
     ].some((field) =>
       String(field ?? "")
@@ -273,9 +263,7 @@ const Locations = () => {
   const isFormValid =
     formData.checkpointCode.trim() !== "" &&
     formData.name.trim() !== "" &&
-    formData.agentId.trim() !== "" &&
-    Number.isInteger(Number(formData.agentId)) &&
-    Number(formData.agentId) > 0;
+    formData.agentName.trim() !== "";
 
   // Colonnes du tableau.
   const checkpointColumns = [
@@ -288,8 +276,19 @@ const Locations = () => {
       accessor: "name",
     },
     {
-      header: "ID de l'agent",
-      accessor: "agentId",
+      header: "Agent responsable",
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-text-primary">
+            {row.agent?.name ?? row.agentName ?? "Non attribué"}
+          </span>
+          {row.agent?.agentCode && (
+            <span className="text-xs text-text-secondary">
+              {row.agent.agentCode}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       header: "Statut",
@@ -463,12 +462,11 @@ const Locations = () => {
 
           <Input
             variant="default"
-            label="ID de l'agent responsable"
-            placeholder="Ex. : 1"
-            name="agentId"
-            inputType="number"
-            value={formData.agentId}
-            onChange={handleChangeFor("agentId")}
+            label="Nom de l'agent responsable"
+            placeholder="Ex. : Jhon Doe"
+            name="agentName"
+            value={formData.agentName}
+            onChange={handleChangeFor("agentName")}
             required
           />
 

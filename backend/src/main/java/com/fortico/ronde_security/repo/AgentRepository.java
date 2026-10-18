@@ -19,4 +19,6 @@ public interface AgentRepository extends JpaRepository<Agents, Long> {
     List<Agents> findByIsActive(boolean isActive);
 
     List<Agents> findByNameContainingIgnoreCase(String name);
+
+    Optional<Agents> findByNameIgnoreCase(String name);
 }

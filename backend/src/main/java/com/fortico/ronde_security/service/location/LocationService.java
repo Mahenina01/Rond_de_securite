@@ -14,20 +14,17 @@ public interface LocationService {
     LocationResponse update(Long id, LocationRequest request);
 
     LocationResponse changeStatus(
-        Long id,
-        boolean active
-    );
+            Long id,
+            boolean active);
 
     LocationResponse assignAgent(
-        Long locationId,
-        Long agentId
-    );
+            Long locationId,
+            Long agentId);
 
     List<LocationResponse> findByAgent(Long agentId);
 
     List<LocationResponse> search(String name);
 
     void delete(Long id);
-
 
 }

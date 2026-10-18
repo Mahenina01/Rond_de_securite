@@ -16,49 +16,31 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ForeignKey;
 
-@Entity 
-@Table(name="location", uniqueConstraints={
-    @UniqueConstraint (name="uk_location_checkpoint", 
-        columnNames="checkpoint_code"
-    )
+@Entity
+@Table(name = "location", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_location_checkpoint", columnNames = "checkpoint_code")
 })
-@Data 
+@Data
 @Builder
-@AllArgsConstructor 
-@NoArgsConstructor 
+@AllArgsConstructor
+@NoArgsConstructor
 public class Location {
-    @Id 
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(
-        name = "checkpoint_code",
-        nullable = false,
-        unique = true,
-        length = 50
-    )
+    @Column(name = "checkpoint_code", nullable = false, unique = true, length = 50)
     private String checkpointCode;
 
-    @Column(
-        name = "name",
-        nullable = false,
-        length = 100
-    )
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(
-        name = "agent_id",
-        foreignKey = @ForeignKey (name = "fk_locations_agent")
-    )
+    @JoinColumn(name = "agent_id", foreignKey = @ForeignKey(name = "fk_locations_agent"))
     private Agents agent;
 
     @Builder.Default
-    @Column (
-        name = "is_active",
-        nullable = false
-    )
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-   
 }

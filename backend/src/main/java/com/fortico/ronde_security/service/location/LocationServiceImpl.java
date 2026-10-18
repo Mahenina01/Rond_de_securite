@@ -2,17 +2,21 @@ package com.fortico.ronde_security.service.location;
 
 import com.fortico.ronde_security.dtos.location.LocationRequest;
 import com.fortico.ronde_security.dtos.location.LocationResponse;
+import com.fortico.ronde_security.dtos.agent.AgentResponse;
+
 import com.fortico.ronde_security.exception.ResourceNotFoundException;
-import com.fortico.ronde_security.repo.AgentRepository;
-import com.fortico.ronde_security.repo.LocationRepository;
-import com.fortico.ronde_security.model.Agents;
-import com.fortico.ronde_security.model.Location;
 import com.fortico.ronde_security.exception.DuplicateAgentCodeException;
 
+import com.fortico.ronde_security.repo.AgentRepository;
+import com.fortico.ronde_security.repo.LocationRepository;
+
+import com.fortico.ronde_security.model.Agents;
+import com.fortico.ronde_security.model.Location;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -30,22 +34,17 @@ public class LocationServiceImpl implements LocationService {
 
         if (locationRepository.existsByCheckpointCode(code)) {
             throw new DuplicateAgentCodeException(
-                "Ce code de point de contrôle existe déjà : " + code
-            );
+                    "Ce code de point de contrôle existe déjà : " + code);
         }
 
-        Agents agent = null;
-
-        if (request.agentId() != null) {
-            agent = findAgent(request.agentId());
-        }
+        Agents agent = findAgentByName(request.agentName());
 
         Location location = Location.builder()
-            .checkpointCode(code)
-            .name(request.name().trim())
-            .agent(agent)
-            .isActive(true)
-            .build();
+                .checkpointCode(request.checkpointCode().trim())
+                .name(request.name().trim())
+                .agent(agent)
+                .isActive(true)
+                .build();
 
         Location saved = locationRepository.save(location);
 
@@ -57,9 +56,9 @@ public class LocationServiceImpl implements LocationService {
     public List<LocationResponse> getAll() {
 
         return locationRepository.findAll()
-            .stream()
-            .map(this::toResponse)
-            .toList();
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
@@ -82,17 +81,12 @@ public class LocationServiceImpl implements LocationService {
                 code, id)) {
 
             throw new DuplicateAgentCodeException(
-                "Ce code est déjà utilisé : " + code
-            );
+                    "Ce code est déjà utilisé : " + code);
         }
 
-        Agents agent = null;
+        Agents agent = findAgentByName(request.agentName());
 
-        if (request.agentId() != null) {
-            agent = findAgent(request.agentId());
-        }
-
-        location.setCheckpointCode(code);
+        location.setCheckpointCode(request.checkpointCode().trim());
         location.setName(request.name().trim());
         location.setAgent(agent);
 
@@ -132,13 +126,12 @@ public class LocationServiceImpl implements LocationService {
     @Transactional(readOnly = true)
     public List<LocationResponse> findByAgent(Long agentId) {
 
-        // Vérifier que l'agent existe.
         findAgent(agentId);
 
         return locationRepository.findByAgent_Id(agentId)
-            .stream()
-            .map(this::toResponse)
-            .toList();
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
@@ -146,10 +139,10 @@ public class LocationServiceImpl implements LocationService {
     public List<LocationResponse> search(String name) {
 
         return locationRepository
-            .findByNameContainingIgnoreCase(name.trim())
-            .stream()
-            .map(this::toResponse)
-            .toList();
+                .findByNameContainingIgnoreCase(name.trim())
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
@@ -171,31 +164,44 @@ public class LocationServiceImpl implements LocationService {
     private Location findLocation(Long id) {
 
         return locationRepository.findById(id)
-            .orElseThrow(() ->
-                new ResourceNotFoundException(
-                    "Emplacement introuvable : " + id
-                )
-            );
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Emplacement introuvable : " + id));
     }
 
     private Agents findAgent(Long agentId) {
 
         return agentRepository.findById(agentId)
-            .orElseThrow(() ->
-                new ResourceNotFoundException(
-                    "Agent introuvable : " + agentId
-                )
-            );
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Agent introuvable : " + agentId));
     }
 
     private LocationResponse toResponse(Location location) {
 
+        AgentResponse agentResponse = null;
+
+        if (location.getAgent() != null) {
+            Agents agent = location.getAgent();
+
+            agentResponse = new AgentResponse(
+                    // À adapter selon les champs du record AgentResponse
+                    agent.getId(),
+                    agent.getAgentCode(),
+                    agent.getName(),
+                    agent.getPhone(),
+                    agent.getIsActive());
+        }
+
         return new LocationResponse(
-            location.getId(),
-            location.getCheckpointCode(),
-            location.getName(),
-            location.getAgent() != null ? location.getAgent().getId() : null,
-            location.getIsActive()
-        );
+                location.getId(),
+                location.getCheckpointCode(),
+                location.getName(),
+                agentResponse,
+                location.getIsActive());
     }
-} 
+
+    private Agents findAgentByName(String name) {
+        return agentRepository.findByNameIgnoreCase(name.trim())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Agent introuvable : " + name));
+    }
+}
