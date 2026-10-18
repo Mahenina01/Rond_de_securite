@@ -22,21 +22,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Gérer les tokens invalides ou expirés
+// Gérer les erreurs d'authentification et d'autorisation
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
     const requestUrl = error.config?.url ?? "";
+
     const isLoginRequest = requestUrl.includes("/auth/login");
+    const isAuthError = status === 401 || status === 403;
+    const isAlreadyOnSignIn = window.location.pathname === "/signin";
 
-    if (
-      status === 401 &&
-      !isLoginRequest &&
-      window.location.pathname !== "/signin"
-    ) {
+    if (isAuthError && !isLoginRequest && !isAlreadyOnSignIn) {
       tokenService.removeToken();
-
       window.location.replace("/signin");
     }
 

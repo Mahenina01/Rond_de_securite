@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router";
 
+import ProtectedRoute from "./protectedRoute";
+
 import DashboardLayout from "../features/DashboardLayout";
 
 import Dashboard from "../features/dashboard/Dashboard";
@@ -10,61 +12,81 @@ import Settings from "../features/setting/Settings";
 import SignIn from "../features/auth/SignIn";
 import NotFound from "../features/notfound/NotFound";
 import Locations from "../features/location/Locations";
+
 import ForgotPasswordPage from "../features/auth/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/ResetPasswordPage";
 import VerifyCodePage from "../features/auth/VerifyCodePage";
+import PublicRoute from "./PublicRoute";
 
 const router = createBrowserRouter([
+  // Routes accessibles uniquement aux utilisateurs non authentifiés
   {
-    path: "/",
-    element: <DashboardLayout />,
+    element: <PublicRoute />,
     children: [
       {
-        index: true,
-        element: <Navigate to="/dashboard" replace />,
+        path: "/signin",
+        element: <SignIn />,
       },
       {
-        path: "dashboard",
-        element: <Dashboard />,
+        path: "/forgot-password",
+        element: <ForgotPasswordPage />,
       },
       {
-        path: "agents",
-        element: <Agents />,
+        path: "/verify-email",
+        element: <VerifyCodePage />,
       },
       {
-        path: "devices",
-        element: <Devices />,
-      },
-      { path: "locations", element: <Locations /> },
-      {
-        path: "reports",
-        element: <Reports />,
-      },
-      {
-        path: "settings",
-        element: <Settings />,
+        path: "/reset-password",
+        element: <ResetPasswordPage />,
       },
     ],
   },
+
+  // Routes protégées
   {
-    path: "/signin",
-    element: <SignIn />,
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: "/",
+        element: <DashboardLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/dashboard" replace />,
+          },
+          {
+            path: "dashboard",
+            element: <Dashboard />,
+          },
+          {
+            path: "agents",
+            element: <Agents />,
+          },
+          {
+            path: "devices",
+            element: <Devices />,
+          },
+          {
+            path: "locations",
+            element: <Locations />,
+          },
+          {
+            path: "reports",
+            element: <Reports />,
+          },
+          {
+            path: "settings",
+            element: <Settings />,
+          },
+        ],
+      },
+    ],
   },
+
+  // Page 404
   {
     path: "*",
     element: <NotFound />,
-  },
-  {
-    path: "/forgot-password",
-    element: <ForgotPasswordPage />,
-  },
-  {
-    path: "/verify-email",
-    element: <VerifyCodePage />,
-  },
-  {
-    path: "/reset-password",
-    element: <ResetPasswordPage />,
   },
 ]);
 

@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 export default function App() {
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-center" />
       <RouterProvider router={router} />
     </>
   );

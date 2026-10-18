@@ -22,7 +22,6 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
-        
 
 server:
   address: 0.0.0.0
@@ -46,12 +45,12 @@ management:
 
 # JWT
 jwt:
-  secret: ${JWT_SECRET:nvz7Y2UYw8KPbHut3vCoq32UpzlXU6U8sIxHWCva1r8=}
+  secret: ${JWT_SECRET:}
   expiration: 3600000
 
 security:
   device:
-    encryption-key: ${DEVICE_ENCRYPTION_KEY:HSFCuiOeQHXEq8LLo4q4WbXhIkD+9EX+deY4WtUmcAY=}
+    encryption-key: ${DEVICE_ENCRYPTION_KEY:}
 
 # Swagger / OpenAPI
 springdoc:
@@ -64,4 +63,4 @@ springdoc:
     try-it-out-enabled: true
 app:
   upload:
-     logo-dir: uploads/logo
+    logo-dir: uploads/logo

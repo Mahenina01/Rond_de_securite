@@ -40,12 +40,12 @@ const authService = {
   },
 
   updateProfile: async (profileData) => {
-    const response = await api.put(endpoints.auth.profile, profileData);
+    const response = await api.patch(endpoints.auth.profile, profileData);
     return response.data;
   },
 
   changePassword: async (passwordData) => {
-    const response = await api.put(endpoints.auth.password, passwordData);
+    const response = await api.patch(endpoints.auth.password, passwordData);
     return response.data;
   },
 };
