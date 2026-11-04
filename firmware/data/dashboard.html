@@ -105,7 +105,20 @@ async function updateDashboard() {
         if (!response.ok) return;
         const data = await response.json();
 
-        document.getElementById('rtcTime').innerText = data.rtc;
+        // Formatage lisible de l'heure RTC
+        if (data.rtc && data.rtc !== "invalide") {
+            const dateObj = new Date(data.rtc);
+            if (!isNaN(dateObj.getTime())) {
+                // Affiche JJ/MM/AAAA HH:mm:ss
+                document.getElementById('rtcTime').innerText = dateObj.toLocaleString('fr-FR');
+            } else {
+                document.getElementById('rtcTime').innerText = data.rtc;
+            }
+        } else {
+            document.getElementById('rtcTime').innerText = "Horloge Invalide";
+        }
+
+        // Affichage de la batterie et des compteurs
         document.getElementById('batteryLevel').innerText = data.battery + '%';
         document.getElementById('countdown').innerText = data.timeout;
         document.getElementById('logsPending').innerText = data.pending;

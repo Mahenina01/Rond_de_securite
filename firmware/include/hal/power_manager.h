@@ -27,3 +27,19 @@ bool power_is_long_press(uint8_t pin, uint32_t holdMs);
 
 /// Ajuste la fréquence CPU (80 MHz veille active, 240 MHz envoi 4G/MQTT).
 void power_set_cpu_frequency(uint32_t mhz);
+
+
+/**
+ * @brief Mesure la tension reelle de la batterie Li-ion en millivolts (mV).
+ */
+uint16_t power_get_battery_voltage_mv();
+
+/**
+ * @brief Calcule le pourcentage de charge (0 à 100%).
+ */
+uint8_t power_get_battery_percentage();
+
+/**
+ * @brief Indique si la batterie est sous le seuil critique (< 3400 mV).
+ */
+bool power_is_battery_low();
