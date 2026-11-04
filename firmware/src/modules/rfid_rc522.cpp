@@ -1,127 +1,179 @@
+
 #include "../include/hal/rfid_rc522.h"
+
 #include <Arduino.h>
 #include <SPI.h>
-#include <MFRC522.h>
+#include <Adafruit_PN532.h>
 
 namespace
 {
+    // Instance SPI
+    Adafruit_PN532 *pn532 = nullptr;
 
-  MFRC522 *rc522 = nullptr;
-  MFRC522::MIFARE_Key defaultKey;
-  uint8_t g_irqPin = 0;
+    // UID memorise
+    uint8_t uidBuffer[10];
+    uint8_t uidLength = 0;
 
-  void bytesToHexString(const uint8_t *bytes, uint8_t len, char *out)
-  {
-    static const char hexDigits[] = "0123456789ABCDEF";
-    for (uint8_t i = 0; i < len; ++i)
-    {
-      out[i * 2] = hexDigits[(bytes[i] >> 4) & 0x0F];
-      out[i * 2 + 1] = hexDigits[bytes[i] & 0x0F];
-    }
-    out[len * 2] = '\0';
-  }
+    bool uidAvailable = false;
 
+    // Interface SPI ESP32
+    SPIClass *rfidSPI = &SPI;
 }
 
-bool RFID_Init(uint8_t ssPin, uint8_t rstPin, uint8_t irqPin,
-               uint8_t sckPin, uint8_t misoPin, uint8_t mosiPin)
+// =====================================================
+// INITIALISATION PN532
+// =====================================================
+
+bool RFID_Init(uint8_t ssPin, uint8_t sckPin, uint8_t misoPin, uint8_t mosiPin)
 {
-  g_irqPin = irqPin;
+    // Configuration SPI
+    rfidSPI->begin(
+        sckPin,
+        misoPin,
+        mosiPin,
+        ssPin
+    );
 
-  SPI.begin(sckPin, misoPin, mosiPin, ssPin);
+    // Creation du PN532
+    static Adafruit_PN532 instance(ssPin, rfidSPI);
 
-  static MFRC522 instance(ssPin, rstPin);
-  rc522 = &instance;
-  rc522->PCD_Init();
+    pn532 = &instance;
 
-  pinMode(g_irqPin, INPUT);
+    // Initialisation du module
+    pn532->begin();
 
-  uint8_t version = rc522->PCD_ReadRegister(MFRC522::VersionReg);
-  return version != 0x00 && version != 0xFF;
+    // Lecture de la version firmware
+    uint32_t version = pn532->getFirmwareVersion();
+
+    if (!version)
+    {
+        Serial.println("[PN532] Module non detecte !");
+        return false;
+    }
+
+    Serial.println("[PN532] Module detecte.");
+
+    Serial.printf(
+        "[PN532] Firmware : %u.%u\n",
+        (version >> 16) & 0xFF,
+        (version >> 8) & 0xFF
+    );
+
+    // Configuration du lecteur
+    pn532->SAMConfig();
+
+    uidAvailable = false;
+
+    return true;
 }
+
+// =====================================================
+// DETECTION BADGE
+// =====================================================
 
 bool RFID_IsCardPresent(void)
 {
-  if (rc522 == nullptr)
-    return false;
-  return rc522->PICC_IsNewCardPresent() && rc522->PICC_ReadCardSerial();
+    if (pn532 == nullptr)
+        return false;
+
+    if (uidAvailable)
+        return true;
+
+    uint8_t tempUID[sizeof(uidBuffer)];
+    uint8_t tempUIDLength = 0;
+
+    // Detection et lecture UID ISO14443A
+    bool success = pn532->readPassiveTargetID(
+        PN532_MIFARE_ISO14443A,
+        tempUID,
+        &tempUIDLength,
+        100
+    );
+
+    if (!success)
+        return false;
+
+    if (tempUIDLength == 0 || tempUIDLength > sizeof(uidBuffer))
+        return false;
+
+    // Memorisation de l'UID
+    memcpy(uidBuffer, tempUID, tempUIDLength);
+
+    uidLength = tempUIDLength;
+    uidAvailable = true;
+
+    return true;
 }
 
-/*bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
-{
-  if (rc522 == nullptr || uidStrOut == nullptr)
-    return false;
-  if (maxLen < RFID_UID_MAX_STR_LEN)
-    return false;
+// =====================================================
+// LECTURE UID
+// =====================================================
 
-  const MFRC522::Uid &uid = rc522->uid;
-  if (uid.size == 0)
-    return false;
-
-  bytesToHexString(uid.uidByte, uid.size, uidStrOut);
-
-  if (!rc522->PICC_HaltA())
-  {
-    Serial.println("[RFID] Avertissement : PICC_HaltA a échoué");
-  }
-  rc522->PCD_StopCrypto1();
-
-  return true;
-}*/
 bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
 {
-  if (rc522 == nullptr || uidStrOut == nullptr)
-    return false;
-  if (maxLen < RFID_UID_MAX_STR_LEN)
-    return false;
+    if (pn532 == nullptr)
+        return false;
 
-  // Déclenche la lecture effective des octets du badge sur le bus SPI
-  if (!rc522->PICC_ReadCardSerial()) {
-    return false;
-  }
+    if (uidStrOut == nullptr)
+        return false;
 
-  const MFRC522::Uid &uid = rc522->uid;
-  if (uid.size == 0)
-    return false;
+    if (!uidAvailable)
+        return false;
 
-  bytesToHexString(uid.uidByte, uid.size, uidStrOut);
+    // 2 caracteres HEX par octet + '\0'
+    size_t requiredLength = (uidLength * 2) + 1;
 
-  if (!rc522->PICC_HaltA()) {
-    Serial.println("[RFID] Avertissement : PICC_HaltA a échoué");
-  }
-  rc522->PCD_StopCrypto1();
+    if (maxLen < requiredLength)
+        return false;
 
-  return true;
+    static const char hexDigits[] = "0123456789ABCDEF";
+
+    for (uint8_t i = 0; i < uidLength; i++)
+    {
+        uidStrOut[i * 2] =
+            hexDigits[(uidBuffer[i] >> 4) & 0x0F];
+
+        uidStrOut[i * 2 + 1] =
+            hexDigits[uidBuffer[i] & 0x0F];
+    }
+
+    uidStrOut[uidLength * 2] = '\0';
+
+    // UID consomme
+    uidAvailable = false;
+
+    return true;
 }
+
+// =====================================================
+// FONCTIONS DE GESTION ENERGIE
+// =====================================================
+
+// Le PN532 possede son propre protocole de gestion
+// d'energie. Ces fonctions doivent etre adaptees
+// selon le mode PowerDown choisi.
 
 void RFID_SetupWakeupIRQ(void)
 {
-  if (rc522 == nullptr)
-    return;
-
-  // Active l'IRQ RxIRq sur la broche IRQ.
-  rc522->PCD_WriteRegister(MFRC522::ComIEnReg, 0xA0); // IRqInv + RxIEn
-  rc522->PCD_WriteRegister(MFRC522::ComIrqReg, 0x00); // clear flags
-
-  // Lance une requête REQA en boucle d'attente passive
-  uint8_t bufferATQA[2];
-  uint8_t bufferSize = sizeof(bufferATQA);
-  rc522->PICC_WakeupA(bufferATQA, &bufferSize);
+    Serial.println(
+        "[PN532] Wakeup IRQ non configure dans ce driver."
+    );
 }
 
 void RFID_PowerDown(void)
 {
-  if (rc522 == nullptr)
-    return;
-  rc522->PCD_AntennaOff();
-  rc522->PCD_WriteRegister(MFRC522::CommandReg, 0x10); // bit PowerDown
+    Serial.println(
+        "[PN532] PowerDown non configure dans ce driver."
+    );
 }
 
 void RFID_WakeUp(void)
 {
-  if (rc522 == nullptr)
-    return;
-  rc522->PCD_WriteRegister(MFRC522::CommandReg, 0x00); // clear PowerDown
-  delay(2);                                            // stabilisation de l'oscillateur
-  rc522->PCD_AntennaOn();
+    if (pn532 == nullptr)
+        return;
+
+    pn532->begin();
+    pn532->SAMConfig();
+
+    Serial.println("[PN532] WakeUp effectue.");
 }
