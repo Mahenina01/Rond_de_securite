@@ -25,7 +25,7 @@ void power_configure_wake_sources()
   // ext1 : reveil si N'IMPORTE LAQUELLE des broches du masque passe a LOW
   // ESP_EXT1_WAKEUP_ALL_LOW pour les ancien core
   // Comportement (reveil seulement si les DEUX passent bas en meme temps)
-  esp_sleep_enable_ext1_wakeup(wakeupPinMask(), ESP_EXT1_WAKEUP_ANY_LOW);
+  esp_sleep_enable_ext1_wakeup(wakeupPinMask(), ESP_EXT1_WAKEUP_ALL_LOW);
 }
 
 WakeReason power_get_wake_reason()

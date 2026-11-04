@@ -7,6 +7,7 @@ import Modal from "../../components/ui/Modal";
 import DeviceIcon from "../../assets/icons/device-out.svg?react";
 import devicesService from "../../service/devciesService";
 import toast from "react-hot-toast";
+import agentsService from "../../service/agentsService";
 
 const emptyForm = {
   deviceCode: "",
@@ -47,6 +48,26 @@ export default function DeviceManagementPage() {
   const [editingDevice, setEditingDevice] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
 
+  const [agents, setAgents] = useState([]);
+  const [agentSuggestionsOpen, setAgentSuggestionsOpen] = useState(false);
+
+  //Charger les listes des agent
+  const loadAgents = useCallback(async () => {
+    try {
+      const response = await agentsService.getAll();
+      const list = getResponseList(response);
+
+      if (!list) {
+        throw new Error("La liste des agents reçue est invalide.");
+      }
+
+      setAgents(list);
+    } catch (error) {
+      console.error("Erreur de chargement des agents :", error);
+      toast.error(getErrorMessage(error, "Impossible de charger les agents."));
+    }
+  }, []);
+
   // Charger les appareils depuis le backend
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -75,13 +96,15 @@ export default function DeviceManagementPage() {
 
   useEffect(() => {
     loadDevices();
-  }, [loadDevices]);
+    loadAgents();
+  }, [loadDevices, loadAgents]);
 
   // Réinitialiser le formulaire
   const resetForm = () => {
     setFormData(emptyForm);
     setFormError("");
     setEditingDevice(null);
+    setAgentSuggestionsOpen(false);
   };
 
   // Fermer le formulaire
@@ -89,6 +112,7 @@ export default function DeviceManagementPage() {
     if (submitting) return;
 
     setIsModalOpen(false);
+    setAgentSuggestionsOpen(false);
     resetForm();
   };
 
@@ -237,6 +261,19 @@ export default function DeviceManagementPage() {
 
   // Recherche par code appareil, agent ou statut
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredAgents = agents.filter((agent) => {
+    const query = formData.nameAgent.trim().toLowerCase();
+
+    return (
+      String(agent.name ?? "")
+        .toLowerCase()
+        .includes(query) ||
+      String(agent.agentCode ?? "")
+        .toLowerCase()
+        .includes(query)
+    );
+  });
 
   const filteredDevices = devices.filter((device) =>
     [
@@ -426,15 +463,56 @@ export default function DeviceManagementPage() {
             required
           />
 
-          <Input
-            variant="default"
-            label="Nom de l'agent"
-            name="nameAgent"
-            placeholder="Ex. : Jean Doe"
-            value={formData.nameAgent}
-            onChange={handleChangeFor("nameAgent")}
-            required
-          />
+          <div className="relative">
+            <Input
+              variant="default"
+              label="Nom de l'agent"
+              name="nameAgent"
+              placeholder="Rechercher par nom ou matricule..."
+              value={formData.nameAgent}
+              onChange={(valueOrEvent) => {
+                handleChangeFor("nameAgent")(valueOrEvent);
+                setAgentSuggestionsOpen(true);
+              }}
+              onFocus={() => setAgentSuggestionsOpen(true)}
+              required
+            />
+
+            {agentSuggestionsOpen && (
+              <div className="absolute z-50 w-full mt-1 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg max-h-56">
+                {filteredAgents.length > 0 ? (
+                  filteredAgents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData((previous) => ({
+                          ...previous,
+                          nameAgent: agent.name ?? "",
+                        }));
+
+                        setAgentSuggestionsOpen(false);
+                        setFormError("");
+                      }}
+                      className="flex items-center justify-between w-full gap-3 px-4 py-3 text-left border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    >
+                      <span className="text-sm font-medium text-gray-800">
+                        {agent.name}
+                      </span>
+
+                      <span className="px-2 py-1 text-xs font-semibold text-gray-600 bg-gray-100 rounded-md shrink-0">
+                        {agent.agentCode}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-4 py-3 text-sm text-gray-500">
+                    Aucun agent trouvé.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {formError && (
             <p className="text-sm text-danger" role="alert">

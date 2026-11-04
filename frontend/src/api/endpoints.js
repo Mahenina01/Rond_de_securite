@@ -42,7 +42,7 @@ const endpoints = {
     list: "/devices",
     create: "/devices",
     detail: (id) => `/devices/${id}`,
-    update: (id) => `/devices/${id}`,
+    update: (id) => `/devices/update/${id}`,
     delete: (id) => `/devices/${id}`,
   },
 };

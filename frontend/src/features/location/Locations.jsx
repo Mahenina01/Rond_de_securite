@@ -9,6 +9,7 @@ import SignPost from "../../assets/icons/signpost.svg?react";
 import Modal from "../../components/ui/Modal";
 import locationsService from "../../service/locationsService";
 import toast from "react-hot-toast";
+import agentsService from "../../service/agentsService";
 
 const emptyForm = {
   checkpointCode: "",
@@ -50,6 +51,31 @@ const Locations = () => {
   const [editingCheckpoint, setEditingCheckpoint] = useState(null);
   const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
 
+  const [agents, setAgents] = useState([]);
+  const [agentSuggestionsOpen, setAgentSuggestionsOpen] = useState(false);
+
+  // Charger les agents enregistrés depuis le backend.
+  const loadAgents = useCallback(async () => {
+    try {
+      const response = await agentsService.getAll();
+      const list = getResponseList(response);
+
+      if (!list) {
+        throw new Error(
+          "Le serveur n'a pas renvoyé une liste valide d'agents.",
+        );
+      }
+
+      setAgents(list);
+    } catch (error) {
+      console.error("Erreur de chargement des agents :", error);
+
+      toast.error(
+        getErrorMessage(error, "Impossible de charger la liste des agents."),
+      );
+    }
+  }, []);
+
   // Charger les points de contrôle depuis le backend.
   const loadCheckpoints = useCallback(async () => {
     setLoading(true);
@@ -78,7 +104,23 @@ const Locations = () => {
 
   useEffect(() => {
     loadCheckpoints();
-  }, [loadCheckpoints]);
+    loadAgents();
+  }, [loadCheckpoints, loadAgents]);
+
+  const filteredAgents = agents.filter((agent) => {
+    const query = formData.agentName.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return (
+      String(agent.name ?? "")
+        .toLowerCase()
+        .includes(query) ||
+      String(agent.agentCode ?? "")
+        .toLowerCase()
+        .includes(query)
+    );
+  });
 
   // Gérer les champs du formulaire.
   const handleChangeFor = (name) => (valueOrEvent) => {
@@ -100,6 +142,7 @@ const Locations = () => {
     setFormData(emptyForm);
     setFormError("");
     setEditingCheckpoint(null);
+    setAgentSuggestionsOpen(false);
   };
 
   // Fermer le formulaire.
@@ -107,6 +150,7 @@ const Locations = () => {
     if (submitting) return;
 
     setIsModalOpen(false);
+    setAgentSuggestionsOpen(false);
     resetForm();
   };
 
@@ -460,15 +504,56 @@ const Locations = () => {
             required
           />
 
-          <Input
-            variant="default"
-            label="Nom de l'agent responsable"
-            placeholder="Ex. : Jhon Doe"
-            name="agentName"
-            value={formData.agentName}
-            onChange={handleChangeFor("agentName")}
-            required
-          />
+          <div className="relative">
+            <Input
+              variant="default"
+              label="Nom de l'agent responsable"
+              placeholder="Rechercher par nom ou code agent..."
+              name="agentName"
+              value={formData.agentName}
+              onChange={(valueOrEvent) => {
+                handleChangeFor("agentName")(valueOrEvent);
+                setAgentSuggestionsOpen(true);
+              }}
+              onFocus={() => setAgentSuggestionsOpen(true)}
+              required
+            />
+
+            {agentSuggestionsOpen && (
+              <div className="absolute z-50 w-full mt-1 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg max-h-52">
+                {filteredAgents.length > 0 ? (
+                  filteredAgents.map((agent) => (
+                    <button
+                      key={agent.id ?? agent.agentCode}
+                      type="button"
+                      onClick={() => {
+                        setFormData((previous) => ({
+                          ...previous,
+                          agentName: agent.name ?? "",
+                        }));
+
+                        setAgentSuggestionsOpen(false);
+                        setFormError("");
+                      }}
+                      className="flex flex-col items-start w-full gap-1 px-3 py-2 text-left transition-colors border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    >
+                      <span className="text-sm font-medium text-text-primary">
+                        {agent.name}
+                      </span>
+
+                      <span className="text-xs text-text-secondary">
+                        Code agent : {agent.agentCode}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-3 text-sm text-text-secondary">
+                    Aucun agent correspondant.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {formError && (
             <p className="text-sm text-danger" role="alert">

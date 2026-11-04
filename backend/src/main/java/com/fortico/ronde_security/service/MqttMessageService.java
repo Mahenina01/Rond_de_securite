@@ -1,4 +1,3 @@
-
 package com.fortico.ronde_security.service;
 
 import java.nio.charset.StandardCharsets;
@@ -11,6 +10,8 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,19 +49,34 @@ public class MqttMessageService {
   @ServiceActivator(inputChannel = "mqttInputChannel")
   @Transactional
   public void receiveMessage(Message<String> message) {
-
-    String topic = String.valueOf(
-        message.getHeaders().get("mqtt_receivedTopic"));
+    String topic = message.getHeaders()
+        .get("mqtt_topic", String.class);
 
     String payload = message.getPayload();
 
-    String deviceId = extractDeviceId(topic);
-
-    log.info("Message MQTT reçu : topic={}, device={}",
-        topic, deviceId);
-
     try {
+      if (topic == null || topic.isBlank()) {
+        throw new IllegalArgumentException(
+            "Le topic MQTT est absent du message.");
+      }
+
+      if (payload == null || payload.isBlank()) {
+        throw new IllegalArgumentException(
+            "Le payload MQTT est vide.");
+      }
+
+      String deviceId = extractDeviceId(topic);
+
+      log.info(
+          "Message MQTT reçu : topic={}, device={}",
+          topic, deviceId);
+
       JsonNode json = objectMapper.readTree(payload);
+
+      if (!json.isObject()) {
+        throw new IllegalArgumentException(
+            "Le payload MQTT doit être un objet JSON.");
+      }
 
       String checkpointCode = requiredText(json, "tag");
       Instant timestamp = parseTimestamp(json.get("timestamp"));
@@ -89,35 +105,70 @@ public class MqttMessageService {
           LogStatus.SUCCESS,
           timestamp);
 
-      // Enregistrement via le service métier existant.
       LogsResponse savedLog = logService.createLog(request);
 
-      // ACK uniquement après le retour réussi du service.
       String ackPayload = objectMapper.writeValueAsString(
           new AckMessage(
               savedLog.eventUuid(),
               "ACK",
               "Log enregistré"));
 
-      mqttPublisherService.publishAck(deviceId, ackPayload);
+      /*
+       * Ne publier l'ACK positif qu'après la validation
+       * de la transaction en cours.
+       */
+      String finalDeviceId = deviceId;
+      String finalAckPayload = ackPayload;
+      UUID finalEventUuid = savedLog.eventUuid();
 
-      log.info(
-          "Log enregistré et ACK publié : eventUuid={}, device={}",
-          savedLog.eventUuid(), deviceId);
+      if (TransactionSynchronizationManager
+          .isSynchronizationActive()) {
+
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                publishAckSafely(
+                    finalDeviceId,
+                    finalAckPayload,
+                    finalEventUuid);
+              }
+            });
+
+      } else {
+        // Si aucune synchronisation transactionnelle n'est active.
+        publishAckSafely(
+            deviceId, ackPayload, savedLog.eventUuid());
+      }
 
     } catch (Exception exception) {
       log.error(
           "Échec du traitement MQTT : topic={}, payload={}",
           topic, payload, exception);
+    }
+  }
 
-      // Pas d'ACK positif si le traitement a échoué.
-      // Le boîtier pourra appliquer sa stratégie de nouvelle tentative.
+  private void publishAckSafely(
+      String deviceId,
+      String ackPayload,
+      UUID eventUuid) {
+
+    try {
+      mqttPublisherService.publishAck(deviceId, ackPayload);
+
+      log.info(
+          "ACK envoyé : eventUuid={}, device={}",
+          eventUuid, deviceId);
+
+    } catch (Exception exception) {
+      log.error(
+          "Échec de publication de l'ACK : eventUuid={}, device={}",
+          eventUuid, deviceId, exception);
     }
   }
 
   private String extractDeviceId(String topic) {
-    if (topic == null
-        || !topic.startsWith(TOPIC_PREFIX)
+    if (!topic.startsWith(TOPIC_PREFIX)
         || !topic.endsWith(DATA_SUFFIX)) {
       throw new IllegalArgumentException(
           "Topic MQTT inattendu : " + topic);
@@ -138,9 +189,11 @@ public class MqttMessageService {
   private String requiredText(JsonNode json, String field) {
     JsonNode node = json.get(field);
 
-    if (node == null || node.isNull() || node.asText().isBlank()) {
+    if (node == null || node.isNull()
+        || !node.isValueNode()
+        || node.asText().isBlank()) {
       throw new IllegalArgumentException(
-          "Champ obligatoire absent ou vide : " + field);
+          "Champ obligatoire absent ou invalide : " + field);
     }
 
     return node.asText();
@@ -153,8 +206,13 @@ public class MqttMessageService {
     }
 
     if (node.isNumber()) {
-      // Hypothèse : une valeur numérique représente des millisecondes.
+      // Les timestamps numériques sont interprétés en millisecondes.
       return Instant.ofEpochMilli(node.asLong());
+    }
+
+    if (!node.isTextual() || node.asText().isBlank()) {
+      throw new IllegalArgumentException(
+          "Format du timestamp invalide.");
     }
 
     return Instant.parse(node.asText());
@@ -167,22 +225,18 @@ public class MqttMessageService {
 
     if (logIdNode != null && !logIdNode.isNull()
         && !logIdNode.asText().isBlank()) {
+
       String logId = logIdNode.asText();
 
       try {
         return UUID.fromString(logId);
       } catch (IllegalArgumentException ignored) {
-        // Si log_id n'est pas un UUID, créer un identifiant
-        // déterministe pour le même événement et le même boîtier.
         return UUID.nameUUIDFromBytes(
             (deviceId + ":" + logId)
                 .getBytes(StandardCharsets.UTF_8));
       }
     }
 
-    // Sans identifiant fourni par le firmware, cette valeur est
-    // déterministe pour ce payload. Le firmware devrait idéalement
-    // fournir un identifiant stable pour gérer les retransmissions.
     return UUID.nameUUIDFromBytes(
         (deviceId + ":" + payload)
             .getBytes(StandardCharsets.UTF_8));

@@ -1,7 +1,7 @@
+
 package com.fortico.ronde_security.service;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
@@ -33,19 +33,23 @@ public class MqttPublisherService {
           "L'identifiant du boîtier est obligatoire.");
     }
 
+    if (payload == null || payload.isBlank()) {
+      throw new IllegalArgumentException(
+          "Le contenu de l'accusé de réception est obligatoire.");
+    }
+
     String topic = ackTopicPrefix + deviceId + "/ack";
 
     Message<String> message = MessageBuilder
         .withPayload(payload)
-        .setHeader(MqttHeaders.TOPIC, topic)
-        .setHeader(MqttHeaders.QOS, 1)
+        .setHeader("mqtt_topic", topic)
         .build();
 
     boolean sent = mqttOutboundChannel.send(message);
 
     if (!sent) {
       throw new IllegalStateException(
-          "Échec de l'envoi du message MQTT.");
+          "Échec de l'envoi du message MQTT vers " + topic);
     }
   }
 }
