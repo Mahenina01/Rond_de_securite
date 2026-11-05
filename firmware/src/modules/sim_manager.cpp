@@ -1,11 +1,10 @@
-// sim_manager.cpp
 #include "hal/sim_manager.h"
 #include <Arduino.h>
 
 static HardwareSerial simSerial(1); // UART1 dedie au module 4G
 static TinyGsm modem(simSerial);
 
-// --- Etat interne de la sequence de mise sous tension (non-bloquant) ---
+// Etat interne de la sequence de mise sous tension
 enum class SimPowerState
 {
     IDLE,
@@ -16,7 +15,7 @@ enum class SimPowerState
 static SimPowerState powerState = SimPowerState::IDLE;
 static uint32_t powerStateStart = 0;
 
-// --- Etat interne de sim_wait_network_ready (non-bloquant) ---
+// Etat interne de sim_wait_network_ready
 static bool networkWaiting = false;
 static bool networkTimedOut = false;
 static uint32_t networkStartMs = 0;
@@ -27,9 +26,19 @@ bool sim_power_on()
     {
 
     case SimPowerState::IDLE:
-        simSerial.begin(115200, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
+        simSerial.begin(
+            115200,
+            SERIAL_8N1,
+            SIM_RX_PIN,
+            SIM_TX_PIN);
+
         pinMode(SIM_PWRKEY_PIN, OUTPUT);
-        digitalWrite(SIM_PWRKEY_PIN, HIGH); // debut de l'impulsion PWRKEY
+
+        digitalWrite(SIM_PWRKEY_PIN, HIGH);
+        delay(100);
+        // debut de l'impulsion PWRKEY
+        digitalWrite(SIM_PWRKEY_PIN, LOW);
+
         powerStateStart = millis();
         powerState = SimPowerState::PULSING;
         networkWaiting = networkTimedOut = false; // nouveau cycle : on reinitialise
@@ -38,7 +47,7 @@ bool sim_power_on()
     case SimPowerState::PULSING:
         if (millis() - powerStateStart >= SIM_PWRKEY_PULSE_MS)
         {
-            digitalWrite(SIM_PWRKEY_PIN, LOW); // fin de l'impulsion
+            digitalWrite(SIM_PWRKEY_PIN, HIGH); // Relâcher PWRKEY
             powerStateStart = millis();
             powerState = SimPowerState::WAIT_BOOT;
         }
@@ -52,8 +61,6 @@ bool sim_power_on()
         return false;
 
     case SimPowerState::READY:
-        // NOTE : modem.testAT() contient une attente interne bornee propre
-        // a TinyGSM (limitation de la bibliotheque, pas de notre code ici).
         return modem.testAT();
     }
     return false;
@@ -62,14 +69,14 @@ bool sim_power_on()
 bool sim_power_off()
 {
     bool ok = modem.poweroff();
-    powerState = SimPowerState::IDLE; // permet un futur sim_power_on() propre
+    powerState = SimPowerState::IDLE; // permet un futur propre
     return ok;
 }
 
 bool sim_wait_network_ready(uint32_t timeout_ms)
 {
     if (networkTimedOut)
-        return false; // deja abandonne : sim_power_on() reinitialise ce drapeau
+        return false;
 
     if (!networkWaiting)
     {
@@ -77,8 +84,6 @@ bool sim_wait_network_ready(uint32_t timeout_ms)
         networkWaiting = true;
     }
 
-    // NOTE : isNetworkConnected() interroge l'etat deja connu du modem
-    // (pas de nouvelle commande AT bloquante emise ici).
     if (modem.isNetworkConnected())
     {
         networkWaiting = false;
@@ -89,10 +94,10 @@ bool sim_wait_network_ready(uint32_t timeout_ms)
     {
         networkTimedOut = true;
         networkWaiting = false;
-        return false; // abandon : la FSM appelante doit decider de la suite (retry, erreur...)
+        return false;
     }
 
-    return false; // encore en attente : rappeler au prochain tour de loop()
+    return false;
 }
 
 TinyGsm &sim_get_modem()

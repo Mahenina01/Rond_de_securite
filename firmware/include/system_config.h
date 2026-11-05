@@ -1,8 +1,6 @@
 #ifndef SYSTEM_CONFIG_H
 #define SYSTEM_CONFIG_H
 
-#include <stdint.h>
-
 // =============================================================================
 // IDENTITÉ ET VERSION DU BOÎTIER
 // =============================================================================
@@ -23,20 +21,11 @@
 // CONFIGURATION MQTT
 // =============================================================================
 
-// Adresse du broker MQTT
-//
-// Pour un test local :
-// #define MQTT_BROKER_HOST       "10.42.0.1"
-//
-// Pour HiveMQ Cloud :
-// #define MQTT_BROKER_HOST       "your-cluster.hivemq.cloud"
-
-#define MQTT_BROKER_HOST "10.42.0.1"
-
+#define MQTT_BROKER_HOST "826eaccd246a41a3a341ecfb30adee9b.s1.eu.hivemq.cloud"
+#define MQTT_USE_TLS true
 #define MQTT_BROKER_PORT 8883
-
-#define MQTT_USER "fortico_admin"
-#define MQTT_PASS "SecuredPass2026!"
+#define MQTT_USER "ronde_security"
+#define MQTT_PASS "selesy20"
 
 // Topics MQTT dynamiques
 // %s sera remplacé par DEVICE_ID
