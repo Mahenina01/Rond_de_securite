@@ -26,16 +26,30 @@
 #define MQTT_BROKER_PORT 8883
 #define MQTT_USER "ronde_security"
 #define MQTT_PASS "selesy20"
+#define MQTT_CLIENT_ID "RONDE-PN-01"
 
-// Topics MQTT dynamiques
-// %s sera remplacé par DEVICE_ID
+#define MQTT_CLIENT_INDEX 0
+#define MQTT_SSL_CONTEXT 0
 
-#define MQTT_TOPIC_DATA_FMT "ronde/boitier/%s/data"
-#define MQTT_TOPIC_ACK_FMT "ronde/boitier/%s/ack"
+#define MQTT_TLS_VERSION 4
+#define MQTT_TLS_AUTH_MODE 1
 
+#define MQTT_TLS_CA_FILE "isrgrootx1.pem"
+
+#define MQTT_QOS 1
+
+// Configuration de connexion
+#define MQTT_KEEPALIVE_S 30
+#define MQTT_CONNECT_TIMEOUT_MS 15000
+
+// Gestion des messages
 #define MQTT_ACK_TIMEOUT_MS 15000
 #define MQTT_MAX_RETRIES 3
 #define MQTT_BUFFER_SIZE 256
+
+// Topics MQTT dynamiques
+#define MQTT_TOPIC_DATA_FMT "ronde/boitier/%s/data"
+#define MQTT_TOPIC_ACK_FMT "ronde/boitier/%s/ack"
 
 // =============================================================================
 // RFID
@@ -67,9 +81,7 @@
 #define RESCUE_AUTO_OFF_MS (5 * 60 * 1000)
 
 // Adresse IP du point d'accès
-
 #define ADRESSE_IP "192.168.4.1"
-
 #define DNS_PORT 53
 
 // =============================================================================
