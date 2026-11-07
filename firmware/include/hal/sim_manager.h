@@ -5,7 +5,20 @@
 #ifndef TINY_GSM_MODEM_SIM7600
 #endif
 
+#include <stdint.h>
+
 #include <TinyGsmClient.h>
+
+struct SimNetworkTime
+{
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+    int second;
+    int utcOffsetMinutes;
+};
 
 // Démarrage non bloquant du modem.
 bool sim_power_on();
@@ -24,6 +37,9 @@ bool sim_connect_internet();
 
 // État de la connexion Internet.
 bool sim_is_internet_connected();
+
+// Heure fournie par le réseau mobile, avec son décalage UTC.
+bool sim_get_network_time(SimNetworkTime &networkTime);
 
 // Accès à l'instance TinyGSM.
 TinyGsm &sim_get_modem();

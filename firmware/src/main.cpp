@@ -1,17 +1,23 @@
 #include <Arduino.h>
 #include <esp_partition.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
 
+#include "hal/rfid_rc522.h"
+#include "hal/rtc_ds3231.h"
+#include "hal/softap_manager.h"
 #include "hal/sim_manager.h"
 #include "hal/mqtt_manager.h"
 #include "log_format.h"
 #include "log_sync.h"
+#include "pins_config.h"
 #include "system_config.h"
 
 // Commandes de test sur le moniteur série :
 //   'l' + Entrée : crée un log de test (EN_ATTENTE) et lance l'envoi
 //   's' + Entrée : affiche le nombre de logs par statut
 //   'C' + Entrée : EFFACE tous les logs (majuscule, pour éviter une erreur)
-// À mettre à 0 quand la lecture RFID appellera storage_append_log().
 #define ENABLE_SERIAL_TEST_LOG 1
 
 // ============================================================
@@ -70,6 +76,193 @@ static uint32_t modemRestartDelayMs = MODEM_RESTART_DELAY_MS;
 // false si LittleFS n'a pas pu être monté : on n'essaie alors ni d'écrire
 // ni de synchroniser les logs (sinon : "File system is not mounted").
 static bool storageReady = false;
+static bool rtcReady = false;
+static QueueHandle_t rfidScanQueue = nullptr;
+
+struct RfidScanEvent
+{
+  char checkpointCode[RFID_UID_MAX_STR_LEN];
+  char timestamp[RTC_ISO8601_BUF_SIZE + 1];
+};
+
+static void rfidTask(void *parameter)
+{
+  (void)parameter;
+
+  bool readerReady = false;
+  bool cardHandled = false;
+  uint32_t lastInitAttemptMs = millis() - 5000;
+
+  for (;;)
+  {
+    if (!readerReady)
+    {
+      if (millis() - lastInitAttemptMs >= 5000)
+      {
+        lastInitAttemptMs = millis();
+        readerReady = RFID_Init(
+            RFID_CS_PIN,
+            RFID_SCK_PIN,
+            RFID_MISO_PIN,
+            RFID_MOSI_PIN);
+      }
+
+      if (!readerReady)
+      {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        continue;
+      }
+    }
+
+    if (!RFID_IsCardPresent())
+    {
+      cardHandled = false;
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    if (cardHandled)
+    {
+      char discardedUid[RFID_UID_MAX_STR_LEN];
+      RFID_ReadUID(discardedUid, sizeof(discardedUid));
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    cardHandled = true;
+
+    RfidScanEvent event{};
+    if (!RFID_ReadUID(event.checkpointCode, sizeof(event.checkpointCode)))
+    {
+      Serial.println("[RFID] UID illisible.");
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    if (strlen(event.checkpointCode) > LOG_FIELD_CHECKPOINT_LEN)
+    {
+      Serial.println("[RFID] UID trop long pour le code checkpoint.");
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    if (!rtc_now_iso8601(event.timestamp, sizeof(event.timestamp)))
+    {
+      Serial.println("[RFID] Horloge RTC invalide : scan non enregistre.");
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    if (xQueueSend(rfidScanQueue, &event, 0) != pdTRUE)
+      Serial.println("[RFID] File de scans pleine : evenement non enregistre.");
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+static void softapTask(void *parameter)
+{
+  (void)parameter;
+
+  for (;;)
+  {
+    softap_loop();
+
+    if (rtc_is_valid())
+    {
+      softap_stop();
+      vTaskDelete(nullptr);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+static bool syncRtcFromNetwork()
+{
+  SimNetworkTime networkTime{};
+  if (!sim_get_network_time(networkTime))
+  {
+    Serial.println("[RTC] Heure reseau mobile indisponible.");
+    return false;
+  }
+
+  const int offset = networkTime.utcOffsetMinutes;
+  const char sign = offset < 0 ? '-' : '+';
+  const int absoluteOffset = offset < 0 ? -offset : offset;
+
+  char timestamp[RTC_ISO8601_BUF_SIZE + 1];
+  snprintf(
+      timestamp,
+      sizeof(timestamp),
+      "%04d-%02d-%02dT%02d:%02d:%02d%c%02d:%02d",
+      networkTime.year,
+      networkTime.month,
+      networkTime.day,
+      networkTime.hour,
+      networkTime.minute,
+      networkTime.second,
+      sign,
+      absoluteOffset / 60,
+      absoluteOffset % 60);
+
+  if (!rtc_sync_from_string(timestamp))
+  {
+    Serial.println("[RTC] Heure reseau invalide, RTC conservee.");
+    return false;
+  }
+
+  Serial.print("[RTC] Horloge synchronisee via le reseau : ");
+  Serial.println(timestamp);
+  return true;
+}
+
+static void processRfidScans()
+{
+  if (rfidScanQueue == nullptr)
+    return;
+
+  RfidScanEvent event{};
+  while (xQueueReceive(rfidScanQueue, &event, 0) == pdTRUE)
+  {
+    if (!storageReady)
+    {
+      Serial.println("[RFID] Stockage indisponible : scan non enregistre.");
+      continue;
+    }
+
+    if (storage_is_space_low())
+    {
+      if (log_sync_busy())
+      {
+        Serial.println("[RFID] Stockage presque plein pendant un envoi; compactage differe.");
+      }
+      else
+      {
+        log_sync_reset();
+        if (!storage_reclaim_space())
+          Serial.println("[RFID] Compactage LittleFS impossible.");
+      }
+    }
+
+    uint32_t lineIndex = 0;
+    if (!storage_append_log(
+            event.timestamp,
+            "",
+            event.checkpointCode,
+            &lineIndex))
+    {
+      Serial.println("[RFID] Echec d'enregistrement du checkpoint.");
+      continue;
+    }
+
+    Serial.print("[RFID] Checkpoint ");
+    Serial.print(event.checkpointCode);
+    Serial.print(" enregistre a ");
+    Serial.println(event.timestamp);
+    log_sync_request();
+  }
+}
 
 // Liste les partitions de la flash. Sert à diagnostiquer un échec de
 // montage : LittleFS cherche la partition dont le nom est le dernier
@@ -107,8 +300,7 @@ static void printPartitions()
 
 #if ENABLE_SERIAL_TEST_LOG
 
-// Crée un log de test. Le timestamp est fabriqué à partir de l'uptime
-// (format imposé par le stockage : "YYYY-MM-DDTHH:MM:SSZ", 20 caractères).
+// Crée un log de test avec l'heure du DS3231.
 static void createTestLog()
 {
   if (!storageReady)
@@ -117,17 +309,12 @@ static void createTestLog()
     return;
   }
 
-  uint32_t s = millis() / 1000;
-
-  char timestamp[LOG_FIELD_TIMESTAMP_LEN + 1];
-
-  snprintf(
-      timestamp,
-      sizeof(timestamp),
-      "2026-11-06T%02u:%02u:%02uZ",
-      static_cast<unsigned int>((s / 3600) % 24),
-      static_cast<unsigned int>((s / 60) % 60),
-      static_cast<unsigned int>(s % 60));
+  char timestamp[RTC_ISO8601_BUF_SIZE];
+  if (!rtc_now_iso8601(timestamp, sizeof(timestamp)))
+  {
+    Serial.println("[TEST] Heure DS3231 invalide.");
+    return;
+  }
 
   uint32_t lineIndex = 0;
 
@@ -236,6 +423,60 @@ void setup()
 
     printPartitions();
   }
+
+  rtcReady = rtc_init(RTC_SDA_PIN, RTC_SCL_PIN);
+  if (rtcReady)
+  {
+    Serial.println(rtc_is_valid()
+                       ? "[PASS] DS3231 detecte, heure conservee."
+                       : "[WARN] DS3231 detecte, heure a synchroniser.");
+  }
+  else
+  {
+    Serial.println("[ERROR] DS3231 absent ou bus I2C indisponible.");
+  }
+
+  if (storageReady)
+  {
+    rfidScanQueue = xQueueCreate(8, sizeof(RfidScanEvent));
+    if (rfidScanQueue == nullptr)
+    {
+      Serial.println("[ERROR] Creation de la file RFID impossible.");
+    }
+    else if (xTaskCreate(
+                 rfidTask,
+                 "rfid-reader",
+                 4096,
+                 nullptr,
+                 1,
+                 nullptr) != pdPASS)
+    {
+      Serial.println("[ERROR] Creation de la tache RFID impossible.");
+    }
+    else
+    {
+      Serial.println("[PASS] Tache FreeRTOS RFID demarree.");
+    }
+  }
+
+  if (!rtcReady || !rtc_is_valid())
+  {
+    softap_start();
+    if (xTaskCreate(
+            softapTask,
+            "rescue-portal",
+            4096,
+            nullptr,
+            1,
+            nullptr) != pdPASS)
+    {
+      Serial.println("[ERROR] Creation de la tache portail impossible.");
+    }
+    else
+    {
+      Serial.println("[INFO] Reglage manuel disponible sur le portail Wi-Fi.");
+    }
+  }
 }
 
 // ============================================================
@@ -244,6 +485,8 @@ void setup()
 
 void loop()
 {
+  processRfidScans();
+
 #if ENABLE_SERIAL_TEST_LOG
   handleSerialTestCommands();
 #endif
@@ -295,6 +538,9 @@ void loop()
     if (sim_wait_network_ready(SIM_NET_TIMEOUT_MS))
     {
       Serial.println("[PASS] Reseau mobile disponible.");
+
+      if (rtcReady)
+        syncRtcFromNetwork();
 
       systemState = SystemState::CONNECT_INTERNET;
     }
@@ -393,10 +639,8 @@ void loop()
     // --------------------------------------------------------
     // 7. FONCTIONNEMENT NORMAL
     // --------------------------------------------------------
-    // ATTENTE : mqtt_maintain() (reconnexion) et log_sync_process()
-    // (publication) sont BLOQUANTS pendant quelques secondes. Quand vous
-    // ajouterez la lecture RFID, exécutez le réseau dans une tâche
-    // FreeRTOS séparée, sinon un badge peut être manqué.
+    // Le lecteur RFID fonctionne dans sa propre tâche FreeRTOS. Les scans
+    // sont mis en file et enregistrés par cette tâche principale.
   case SystemState::RUNNING:
 
     mqtt_maintain();
@@ -454,11 +698,6 @@ void loop()
         break;
       }
     }
-
-    // Ici, le firmware continue ses tâches :
-    // - Lecture RFID
-    // - Horodatage DS3231
-    // - Enregistrement LittleFS (storage_append_log + log_sync_request)
 
     if (millis() - lastStatusMessage >= 10000)
     {

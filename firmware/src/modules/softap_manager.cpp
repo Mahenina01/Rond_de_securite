@@ -112,34 +112,21 @@ namespace
 
 void softap_start()
 {
-  // =================================================================
-  // MODE STATION (Pour simulation Wokwi)
-  // =================================================================
-  WiFi.mode(WIFI_STA);
-  WiFi.begin("Wokwi-GUEST", ""); // Connexion au réseau virtuel Wokwi
-
-  Serial.print("[WiFi] Connexion a Wokwi-GUEST");
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("[WEB] Dashboard accessible sur : http://");
-  Serial.println(WiFi.localIP());
-
-  // En mode Station sur Wokwi, le serveur DNS du portail captif est inutile
-  // car vous accédez directement à l'IP attribuée par la passerelle.
-  // dnsServer.start(DNS_PORT, "*", WiFi.localIP());
-
-  // =================================================================
-  // MODE POINT D'ACCÈS (Pour matériel réel - Désactivé)
-  // =================================================================
-  /*
+  softap_set_password_hash(RESCUE_PASS);
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(RESCUE_SSID, AP_WIFI_PASSWORD);
+  const IPAddress ip(192, 168, 4, 1);
+  const IPAddress subnet(255, 255, 255, 0);
+  WiFi.softAPConfig(ip, ip, subnet);
+
+  if (!WiFi.softAP(RESCUE_SSID, AP_WIFI_PASSWORD))
+  {
+    Serial.println("[WEB] Echec demarrage du point d'acces de secours.");
+    return;
+  }
+
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-  */
+  Serial.print("[WEB] Portail de secours : http://");
+  Serial.println(WiFi.softAPIP());
 
   // --- CONFIGURATION DU SERVEUR WEB ---
   const char *headerKeys[] = {"Cookie"};
@@ -219,19 +206,31 @@ void softap_start()
   server.on("/download", HTTP_GET, []()
   {
     if (!requireAuth()) return;
+
+    if (!storage_acquire())
+    {
+      server.send(503, "text/plain", "Stockage occupe, reessayez.");
+      return;
+    }
+
     File file = LittleFS.open("/logs.csv", "r");
     if (!file) {
+      storage_release();
       server.send(404, "text/plain", "Fichier introuvable");
       return;
     }
     server.sendHeader("Content-Disposition", "attachment; filename=logs.csv");
     server.streamFile(file, "text/csv");
     file.close(); 
+    storage_release();
   });
 
   server.on("/api/status", HTTP_GET, []()
   {
     if (!requireAuth()) return;
+
+    char rtcTimestamp[RTC_ISO8601_BUF_SIZE];
+    const bool rtcValid = rtc_now_iso8601(rtcTimestamp, sizeof(rtcTimestamp));
 
     size_t totalBytes = LittleFS.totalBytes();
     size_t usedBytes = LittleFS.usedBytes();
@@ -243,12 +242,17 @@ void softap_start()
     snprintf(timeoutStr, sizeof(timeoutStr), "%02u:%02u", (unsigned int)(seconds / 60), (unsigned int)(seconds % 60));
 
     String json = "{";
-    json += "\"rtc\":\"30/08/2026 14:27:00\",";
+    json += "\"rtc\":\"";
+    json += rtcValid ? rtcTimestamp : "invalide";
+    json += "\",";
     json += "\"battery\":78,";          
     json += "\"timeout\":\"" + String(timeoutStr) + "\",";
-    json += "\"pending\":12,";
-    json += "\"sent\":340,";
-    json += "\"failed\":3,";
+    json += "\"pending\":" +
+            String(storage_count_by_status(LOG_STATUS_PENDING)) + ",";
+    json += "\"sent\":" +
+            String(storage_count_by_status(LOG_STATUS_SENT)) + ",";
+    json += "\"failed\":" +
+            String(storage_count_by_status(LOG_STATUS_FAILED)) + ",";
     json += "\"used\":" + String(usedPercent);
     json += "}";
 
@@ -258,8 +262,13 @@ void softap_start()
   server.on("/purge", HTTP_POST, []()
   {
     if (!requireAuth()) return;
-    LittleFS.remove("/logs.csv");
-    storage_init();
+
+    if (!clear_storage_logs())
+    {
+      server.send(500, "text/plain", "Echec de la purge.");
+      return;
+    }
+
     server.sendHeader("Location", "/dashboard", true);
     server.send(302, "text/plain", ""); 
   });
@@ -267,14 +276,27 @@ void softap_start()
   server.on("/sync-rtc", HTTP_POST, []()
   {
     if (!requireAuth()) return;
-    
-    if (server.hasArg("time")) {
-        rtc_sync_from_string(server.arg("time").c_str());
-    } else if (server.hasArg("timestamp")) {
-        rtc_sync_from_string(server.arg("timestamp").c_str());
+
+    const char *timeField = nullptr;
+    if (server.hasArg("time"))
+      timeField = "time";
+    else if (server.hasArg("timestamp"))
+      timeField = "timestamp";
+
+    if (timeField == nullptr)
+    {
+      server.send(400, "text/plain", "Champ time manquant.");
+      return;
     }
-    
-    server.send(200, "text/plain", "OK"); 
+
+    String timestamp = server.arg(timeField);
+    if (!rtc_sync_from_string(timestamp.c_str()))
+    {
+      server.send(400, "text/plain", "Date invalide ou DS3231 indisponible.");
+      return;
+    }
+
+    server.send(200, "text/plain", "Heure UTC enregistree.");
   });
 
   server.onNotFound([]()
@@ -295,13 +317,13 @@ void softap_start()
 // Traite les requêtes HTTP/DNS entrantes (à appeler dans la tâche FreeRTOS)
 void softap_loop()
 {
- // dnsServer.processNextRequest();
+  dnsServer.processNextRequest();
   server.handleClient();
 }
 
 void softap_stop()
 {
-  //dnsServer.stop();
+  dnsServer.stop();
   server.close();
   WiFi.softAPdisconnect(true);
   g_sessionToken[0] = '\0'; // invalide toute session en cours

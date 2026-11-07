@@ -1,7 +1,7 @@
 #ifndef PINS_CONFIG_H
 #define PINS_CONFIG_H
 
-// RFID RC522 - SPI
+// RFID PN532 - SPI
 #define RFID_CS_PIN 5    // GP105 (SDA/SS)
 #define RFID_RST_PIN 27  // GP1027
 #define RFID_SCK_PIN 18  // GPIO18

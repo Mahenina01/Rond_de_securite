@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// UID PN532 jusqu'a 10 octets, converti en hexadecimal + '\0'.
+// UID PN532 jusqu'a 10 octets, converti en hexadecimal majuscule + '\0'.
 #define RFID_UID_MAX_STR_LEN 21
 
 // Initialisation du PN532 en SPI (CS, SCK, MISO et MOSI).

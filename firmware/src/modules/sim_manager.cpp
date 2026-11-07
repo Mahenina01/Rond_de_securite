@@ -2,6 +2,8 @@
 #include "pins_config.h"
 #include "system_config.h"
 
+#include <math.h>
+
 static HardwareSerial simSerial(SIM_UART_NUM);
 static TinyGsm modem(simSerial);
 
@@ -236,6 +238,46 @@ bool sim_is_internet_connected()
     return modemInitialized &&
            internetConnected &&
            modem.isGprsConnected();
+}
+
+bool sim_get_network_time(SimNetworkTime &networkTime)
+{
+    if (!modemInitialized || !modem.isNetworkConnected())
+        return false;
+
+    int year, month, day, hour, minute, second;
+    float timezone;
+
+    if (!modem.getNetworkTime(
+            &year,
+            &month,
+            &day,
+            &hour,
+            &minute,
+            &second,
+            &timezone) ||
+        !isfinite(timezone))
+        return false;
+
+    const int offsetMinutes = static_cast<int>(lroundf(timezone * 60.0f));
+    if (year < 2020 || year > 2099 ||
+        month < 1 || month > 12 ||
+        day < 1 || day > 31 ||
+        hour < 0 || hour > 23 ||
+        minute < 0 || minute > 59 ||
+        second < 0 || second > 59 ||
+        offsetMinutes < -14 * 60 || offsetMinutes > 14 * 60)
+        return false;
+
+    networkTime.year = year;
+    networkTime.month = month;
+    networkTime.day = day;
+    networkTime.hour = hour;
+    networkTime.minute = minute;
+    networkTime.second = second;
+    networkTime.utcOffsetMinutes = offsetMinutes;
+
+    return true;
 }
 
 // ARRET MODEM

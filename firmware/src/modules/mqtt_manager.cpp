@@ -57,13 +57,14 @@ static size_t rxPayloadLength = 0;
 
 static bool buildEventUuid(const LogEntry &entry, char *out, size_t outSize)
 {
-    char key[sizeof(DEVICE_ID) + LOG_FIELD_TIMESTAMP_LEN +
-             LOG_FIELD_AGENT_LEN + LOG_FIELD_CHECKPOINT_LEN + 3];
+    char key[sizeof(DEVICE_ID) + 10 + LOG_FIELD_TIMESTAMP_LEN +
+             LOG_FIELD_AGENT_LEN + LOG_FIELD_CHECKPOINT_LEN + 5];
     int keyLength = snprintf(
         key,
         sizeof(key),
-        "%s:%s,%s,%s",
+        "%s:%lu:%s,%s,%s",
         DEVICE_ID,
+        static_cast<unsigned long>(entry.line_index),
         entry.timestamp_iso,
         entry.id_agent,
         entry.id_checkpoint);

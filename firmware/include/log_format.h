@@ -8,8 +8,8 @@
 // Tailles des champs du fichier CSV persistant (LittleFS)
 #define LOG_FIELD_TIMESTAMP_LEN 20  // "YYYY-MM-DDTHH:MM:SSZ"
 #define LOG_FIELD_AGENT_LEN 5       // Ex: "AG001"
-#define LOG_FIELD_CHECKPOINT_LEN 14 // Ex: "CHECKPOINT_001"
-#define LOG_LINE_LEN 44             // Taille fixe d'une ligne CSV avec '\n'
+#define LOG_FIELD_CHECKPOINT_LEN 20 // UID PN532 hexadécimal (jusqu'à 10 octets)
+#define LOG_LINE_LEN 50             // Taille fixe d'une ligne CSV avec '\n'
 
 /// Seuil d'occupation LittleFS (%) déclenchant la libération d'espace
 #define LOG_SPACE_LOW_THRESHOLD_PERCENT 90
@@ -35,6 +35,8 @@ struct LogEntry
 
 // API du Gestionnaire de Stockage (LittleFS)
 bool storage_init();
+bool storage_acquire();
+void storage_release();
 bool storage_append_log(const char *timestamp_iso, const char *id_agent,
                         const char *id_checkpoint, uint32_t *out_line_index);
 bool storage_update_status(uint32_t line_index, LogStatus new_status);
