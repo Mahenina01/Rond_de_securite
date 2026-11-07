@@ -78,11 +78,11 @@ public class MqttMessageService {
             "Le payload MQTT doit être un objet JSON.");
       }
 
-      String checkpointCode = requiredText(json, "tag");
+      String checkpointCode = requiredText(json, "id_checkpoint");
       Instant timestamp = parseTimestamp(json.get("timestamp"));
 
       UUID eventUuid = parseEventUuid(
-          json.get("log_id"), deviceId, payload);
+          json.get("id"), deviceId, payload);
 
       Location location = locationRepository
           .findByCheckpointCode(checkpointCode)

@@ -31,7 +31,7 @@ server:
 mqtt:
   broker-host: ${MQTT_BROKER_HOST:826eaccd246a41a3a341ecfb30adee9b.s1.eu.hivemq.cloud}
   broker-port: ${MQTT_BROKER_PORT:8883}
-  client-id: ${MQTT_CLIENT_ID:RONDE-PN-01}
+  client-id: ${MQTT_CLIENT_ID:RONDE-SECURITY}
   username: ${MQTT_USERNAME:ronde_security}
   password: ${MQTT_PASSWORD:selesy20}
   tls-enabled: true

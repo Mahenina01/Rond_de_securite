@@ -155,7 +155,7 @@ size_t storage_find_by_status(LogStatus status, LogEntry *out_entries, size_t ma
 
     size_t statusOffset = checkpointOffset + LOG_FIELD_CHECKPOINT_LEN + 1;
     entry.statut_envoi = (LogStatus)buffer[statusOffset];
-    
+
     // Assignation des deux identifiants
     entry.line_index = lineIndex;
     entry.id = lineIndex; // L'identifiant unique correspond au numéro de ligne
@@ -169,7 +169,7 @@ size_t storage_find_by_status(LogStatus status, LogEntry *out_entries, size_t ma
   return found;
 }
 
- size_t storage_count_by_status(LogStatus status)
+size_t storage_count_by_status(LogStatus status)
 {
   File f = LittleFS.open(LOG_FILE_PATH, "r");
   if (!f)
@@ -267,5 +267,18 @@ bool storage_reclaim_space()
   }
 
   Serial.printf("[storage] Compaction terminee (%u lignes analysees)\n", lineCount);
+  return true;
+}
+
+bool clear_storage_logs()
+{
+  if (LittleFS.exists(LOG_FILE_PATH))
+  {
+    LittleFS.remove(LOG_FILE_PATH);
+  }
+  File f = LittleFS.open(LOG_FILE_PATH, "w");
+  if (!f)
+    return false;
+  f.close();
   return true;
 }

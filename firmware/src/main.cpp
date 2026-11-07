@@ -10,6 +10,7 @@
 // Commandes de test sur le moniteur série :
 //   'l' + Entrée : crée un log de test (EN_ATTENTE) et lance l'envoi
 //   's' + Entrée : affiche le nombre de logs par statut
+//   'C' + Entrée : EFFACE tous les logs (majuscule, pour éviter une erreur)
 // À mettre à 0 quand la lecture RFID appellera storage_append_log().
 #define ENABLE_SERIAL_TEST_LOG 1
 
@@ -132,8 +133,9 @@ static void createTestLog()
 
   if (storage_append_log(timestamp, "AG001", "CHECKPOINT_001", &lineIndex))
   {
-    Serial.print("[TEST] Log cree, id=");
-    Serial.println(lineIndex);
+    Serial.print("[TEST] Log cree (ligne ");
+    Serial.print(lineIndex);
+    Serial.println("). L'id a utiliser pour l'ACK s'affiche a la publication.");
 
     // Prévient le module de synchronisation.
     log_sync_request();
@@ -162,6 +164,25 @@ static void printStorageStats()
   Serial.println(static_cast<unsigned int>(storage_count_by_status(LOG_STATUS_FAILED)));
 }
 
+// Efface tous les logs (test uniquement).
+static void clearAllLogs()
+{
+  if (!storageReady)
+  {
+    Serial.println("[TEST] Stockage indisponible (LittleFS non monte).");
+    return;
+  }
+
+  // D'abord on abandonne l'envoi en cours : le lot gardé en mémoire par
+  // log_sync ne correspond plus au fichier une fois celui-ci effacé.
+  log_sync_reset();
+
+  if (clear_storage_logs())
+    Serial.println("[TEST] Tous les logs ont ete effaces.");
+  else
+    Serial.println("[TEST] Echec de l'effacement des logs.");
+}
+
 static void handleSerialTestCommands()
 {
   while (Serial.available())
@@ -172,6 +193,8 @@ static void handleSerialTestCommands()
       createTestLog();
     else if (c == 's')
       printStorageStats();
+    else if (c == 'C')
+      clearAllLogs();
   }
 }
 

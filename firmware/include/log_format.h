@@ -44,4 +44,7 @@ void storage_build_log_id(const LogEntry &entry, char *out, size_t out_len);
 bool storage_is_space_low(uint8_t threshold_percent = LOG_SPACE_LOW_THRESHOLD_PERCENT);
 bool storage_reclaim_space();
 
+// efface tous les logs du stockage (LittleFS) et réinitialise le fichier CSV
+bool clear_storage_logs();
+
 #endif // LOG_FORMAT_H

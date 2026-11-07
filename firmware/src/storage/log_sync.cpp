@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "hal/mqtt_manager.h"
 #include "log_format.h"
@@ -19,6 +20,12 @@
 
 // Délai avant de remettre les logs en ECHEC dans la file d'envoi.
 #define SYNC_REQUEUE_FAILED_MS 300000UL
+
+// Nombre de logs ENVOYE accumulés avant de les supprimer de la mémoire.
+// Plus petit = fichier plus petit ; plus grand = moins d'écritures en flash.
+#ifndef SYNC_PURGE_MIN_SENT
+#define SYNC_PURGE_MIN_SENT 10
+#endif
 
 // ETAT INTERNE
 
@@ -49,10 +56,49 @@ namespace
 
   bool scanRequested = true;
 
+  // Purge : logs ENVOYE accumulés depuis la dernière purge. La première
+  // purge est faite au démarrage pour nettoyer les restes d'une session
+  // précédente.
+  uint32_t sentSincePurge = 0;
+  bool purgeRequested = true;
+
   // Comparaison d'échéance insensible au débordement de millis().
   bool reached(uint32_t deadline)
   {
     return static_cast<int32_t>(millis() - deadline) >= 0;
+  }
+
+  // IDENTIFIANT PUBLIE
+  //
+  // L'"id" envoyé au serveur (et renvoyé dans l'ACK) est une empreinte CRC32
+  // de "timestamp,agent,checkpoint". Il ne dépend PAS du numéro de ligne :
+  // la purge des logs ENVOYE décale les numéros de ligne, et un numéro de
+  // ligne réutilisé permettrait à un ACK en double ou en retard (QoS 1)
+  // d'acquitter un autre log à tort.
+  uint32_t crc32(const char *text)
+  {
+    uint32_t crc = 0xFFFFFFFFu;
+
+    for (; *text != '\0'; ++text)
+    {
+      crc ^= static_cast<uint8_t>(*text);
+
+      for (int bit = 0; bit < 8; ++bit)
+        crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+    }
+
+    return ~crc;
+  }
+
+  uint32_t publishedId(const LogEntry &entry)
+  {
+    char key[LOG_FIELD_TIMESTAMP_LEN + LOG_FIELD_AGENT_LEN +
+             LOG_FIELD_CHECKPOINT_LEN + 4];
+
+    snprintf(key, sizeof(key), "%s,%s,%s",
+             entry.timestamp_iso, entry.id_agent, entry.id_checkpoint);
+
+    return crc32(key);
   }
 
   // Passe au log suivant du lot ; si le lot est terminé, demande un
@@ -74,7 +120,7 @@ namespace
     attempts++;
 
     Serial.print("[SYNC] Echec log id=");
-    Serial.print(entry.line_index);
+    Serial.print(publishedId(entry));
     Serial.print(" : ");
     Serial.println(reason);
 
@@ -85,13 +131,40 @@ namespace
       storage_update_status(entry.line_index, LOG_STATUS_FAILED);
 
       Serial.print("[SYNC] Log id=");
-      Serial.print(entry.line_index);
+      Serial.print(publishedId(entry));
       Serial.println(" marque ECHEC, nouvel essai plus tard.");
 
       attempts = 0;
 
       advance();
     }
+  }
+
+  // Supprime de la mémoire les logs ENVOYE (les logs EN_ATTENTE et ECHEC
+  // sont conservés).
+  //
+  // Appelée uniquement quand il n'y a plus rien en cours : état IDLE, lot
+  // vide, aucun log EN_ATTENTE. La suppression décale les numéros de ligne,
+  // donc aucun envoi ne doit être en cours.
+  void purgeSentLogs()
+  {
+    if (!purgeRequested && sentSincePurge < SYNC_PURGE_MIN_SENT)
+      return;
+
+    if (storage_reclaim_space())
+    {
+      Serial.println("[SYNC] Logs ENVOYE supprimes de la memoire.");
+
+      sentSincePurge = 0;
+      purgeRequested = false;
+    }
+    else
+    {
+      Serial.println("[SYNC] Echec de la purge, nouvel essai plus tard.");
+    }
+
+    batchCount = 0;
+    batchPos = 0;
   }
 
   // Remet en file d'envoi les logs en ECHEC (au plus un lot à la fois).
@@ -137,6 +210,8 @@ namespace
 
     if (batchCount == 0)
     {
+      // File vide : moment sûr pour libérer la mémoire.
+      purgeSentLogs();
       requeueFailedLogs();
       return false;
     }
@@ -151,15 +226,20 @@ namespace
   {
     const LogEntry &entry = batch[batchPos];
 
+    // Copie à envoyer : l'identifiant publié remplace le numéro de ligne.
+    // (Le statut sera mis à jour avec le vrai numéro de ligne, dans batch.)
+    LogEntry toSend = entry;
+    toSend.line_index = publishedId(entry);
+
     Serial.print("[SYNC] Publication du log id=");
-    Serial.print(entry.line_index);
+    Serial.print(toSend.line_index);
     Serial.print(" (tentative ");
     Serial.print(attempts + 1);
     Serial.print("/");
     Serial.print(MQTT_MAX_RETRIES);
     Serial.println(")");
 
-    if (mqtt_publish_log(entry))
+    if (mqtt_publish_log(toSend))
     {
       ackStartMs = millis();
       state = SyncState::WAIT_ACK;
@@ -180,8 +260,10 @@ namespace
     {
       if (storage_update_status(entry.line_index, LOG_STATUS_SENT))
       {
+        sentSincePurge++;
+
         Serial.print("[SYNC] Log id=");
-        Serial.print(entry.line_index);
+        Serial.print(publishedId(entry));
         Serial.println(" ENVOYE et acquitte.");
       }
       else
