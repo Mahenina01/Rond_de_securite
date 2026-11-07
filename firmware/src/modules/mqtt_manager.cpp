@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <ArduinoJson.h>
+#include <mbedtls/md5.h>
 
 #include "system_config.h"
 #include "hal/sim_manager.h"
@@ -42,7 +43,7 @@ static uint32_t reconnectDelayMs = MQTT_CONNECT_TIMEOUT_MS;
 
 // ACK applicatif
 static volatile bool ackReceived = false;
-static volatile uint32_t ackTargetId = 0;
+static char ackTargetUuid[37];
 
 static bool ackWaiting = false;
 static uint32_t ackStartMs = 0;
@@ -53,6 +54,47 @@ static char rxPayload[MQTT_RX_PAYLOAD_SIZE];
 
 static size_t rxTopicLength = 0;
 static size_t rxPayloadLength = 0;
+
+static bool buildEventUuid(const LogEntry &entry, char *out, size_t outSize)
+{
+    char key[sizeof(DEVICE_ID) + LOG_FIELD_TIMESTAMP_LEN +
+             LOG_FIELD_AGENT_LEN + LOG_FIELD_CHECKPOINT_LEN + 3];
+    int keyLength = snprintf(
+        key,
+        sizeof(key),
+        "%s:%s,%s,%s",
+        DEVICE_ID,
+        entry.timestamp_iso,
+        entry.id_agent,
+        entry.id_checkpoint);
+
+    if (keyLength <= 0 || static_cast<size_t>(keyLength) >= sizeof(key))
+        return false;
+
+    unsigned char digest[16];
+    if (mbedtls_md5_ret(
+            reinterpret_cast<const unsigned char *>(key),
+            static_cast<size_t>(keyLength),
+            digest) != 0)
+    {
+        return false;
+    }
+
+    // UUID.nameUUIDFromBytes() used by the backend creates an RFC 4122 v3 UUID.
+    digest[6] = (digest[6] & 0x0F) | 0x30;
+    digest[8] = (digest[8] & 0x3F) | 0x80;
+
+    int uuidLength = snprintf(
+        out,
+        outSize,
+        "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+        digest[0], digest[1], digest[2], digest[3],
+        digest[4], digest[5], digest[6], digest[7],
+        digest[8], digest[9], digest[10], digest[11],
+        digest[12], digest[13], digest[14], digest[15]);
+
+    return uuidLength == 36 && static_cast<size_t>(uuidLength) < outSize;
+}
 
 // CALLBACK ACK
 static void processAck()
@@ -71,17 +113,17 @@ static void processAck()
         return;
     }
 
-    if (!doc["id"].is<uint32_t>())
+    if (!doc["eventUuid"].is<const char *>())
         return;
 
-    uint32_t receivedId = doc["id"].as<uint32_t>();
+    const char *receivedUuid = doc["eventUuid"].as<const char *>();
 
-    if (receivedId == ackTargetId)
+    if (strcmp(receivedUuid, ackTargetUuid) == 0)
     {
         ackReceived = true;
 
-        Serial.print("[MQTT] ACK valide pour le log : ");
-        Serial.println(receivedId);
+        Serial.print("[MQTT] ACK valide pour eventUuid : ");
+        Serial.println(receivedUuid);
     }
 }
 
@@ -820,9 +862,16 @@ bool mqtt_publish_log(const LogEntry &entry)
     if (!connected || !subscribed)
         return false;
 
+    char eventUuid[sizeof(ackTargetUuid)];
+    if (!buildEventUuid(entry, eventUuid, sizeof(eventUuid)))
+    {
+        Serial.println("[MQTT] Impossible de generer l'UUID du log.");
+        return false;
+    }
+
     JsonDocument doc;
 
-    doc["id"] = entry.line_index;
+    doc["id"] = eventUuid;
     doc["device_id"] = DEVICE_ID;
     doc["timestamp"] = entry.timestamp_iso;
     doc["id_agent"] = entry.id_agent;
@@ -842,7 +891,7 @@ bool mqtt_publish_log(const LogEntry &entry)
         return false;
     }
 
-    ackTargetId = entry.line_index;
+    memcpy(ackTargetUuid, eventUuid, sizeof(ackTargetUuid));
     ackReceived = false;
 
     char command[128];

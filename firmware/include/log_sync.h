@@ -9,7 +9,7 @@
 //   ECHEC      ('2') --après 5 min--------> EN_ATTENTE ('0') (nouvel essai)
 //
 // Un log n'est marqué ENVOYE qu'après réception de l'ACK applicatif du
-// serveur sur le topic ronde/boitier/<DEVICE_ID>/ack avec le même "id".
+// serveur sur le topic ronde/boitier/<DEVICE_ID>/ack avec le même "eventUuid".
 
 // Demande une synchronisation à la prochaine occasion.
 // À appeler après chaque storage_append_log() réussi.

@@ -226,10 +226,9 @@ namespace
   {
     const LogEntry &entry = batch[batchPos];
 
-    // Copie à envoyer : l'identifiant publié remplace le numéro de ligne.
-    // (Le statut sera mis à jour avec le vrai numéro de ligne, dans batch.)
+    // La publication génère un UUID à partir du contenu du log. Le numéro de
+    // ligne reste celui du stockage pour mettre à jour le bon statut après ACK.
     LogEntry toSend = entry;
-    toSend.line_index = publishedId(entry);
 
     Serial.print("[SYNC] Publication du log id=");
     Serial.print(toSend.line_index);

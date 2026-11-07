@@ -109,6 +109,7 @@ public class MqttMessageService {
 
       String ackPayload = objectMapper.writeValueAsString(
           new AckMessage(
+              savedLog.id(),
               savedLog.eventUuid(),
               "ACK",
               "Log enregistré"));
@@ -117,6 +118,7 @@ public class MqttMessageService {
        * Ne publier l'ACK positif qu'après la validation
        * de la transaction en cours.
        */
+      long id = savedLog.id();
       String finalDeviceId = deviceId;
       String finalAckPayload = ackPayload;
       UUID finalEventUuid = savedLog.eventUuid();
@@ -129,6 +131,7 @@ public class MqttMessageService {
               @Override
               public void afterCommit() {
                 publishAckSafely(
+                    id,
                     finalDeviceId,
                     finalAckPayload,
                     finalEventUuid);
@@ -138,7 +141,10 @@ public class MqttMessageService {
       } else {
         // Si aucune synchronisation transactionnelle n'est active.
         publishAckSafely(
-            deviceId, ackPayload, savedLog.eventUuid());
+            id,
+            finalDeviceId,
+            finalAckPayload,
+            finalEventUuid);
       }
 
     } catch (Exception exception) {
@@ -149,6 +155,7 @@ public class MqttMessageService {
   }
 
   private void publishAckSafely(
+      long id,
       String deviceId,
       String ackPayload,
       UUID eventUuid) {
@@ -157,8 +164,8 @@ public class MqttMessageService {
       mqttPublisherService.publishAck(deviceId, ackPayload);
 
       log.info(
-          "ACK envoyé : eventUuid={}, device={}",
-          eventUuid, deviceId);
+          "ACK envoyé : id={}, eventUuid={}, device={}",
+          id, eventUuid, deviceId);
 
     } catch (Exception exception) {
       log.error(
@@ -243,6 +250,7 @@ public class MqttMessageService {
   }
 
   public record AckMessage(
+      long id,
       UUID eventUuid,
       String status,
       String message) {
