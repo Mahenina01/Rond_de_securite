@@ -29,11 +29,12 @@ server:
 
 # MQTT
 mqtt:
-  broker-host: ${MQTT_BROKER_HOST:localhost}
-  broker-port: ${MQTT_BROKER_PORT:1822}
-  client-id: ${MQTT_CLIENT_ID:ronde-security-backend}
-  username: ${MQTT_USERNAME:}
-  password: ${MQTT_PASSWORD:}
+  broker-host: ${MQTT_BROKER_HOST:826eaccd246a41a3a341ecfb30adee9b.s1.eu.hivemq.cloud}
+  broker-port: ${MQTT_BROKER_PORT:8883}
+  client-id: ${MQTT_CLIENT_ID:RONDE-PN-01}
+  username: ${MQTT_USERNAME:ronde_security}
+  password: ${MQTT_PASSWORD:selesy20}
+  tls-enabled: true
   data-topic: ronde/boitier/+/data
   ack-topic-prefix: ronde/boitier/
 

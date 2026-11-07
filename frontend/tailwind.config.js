@@ -6,8 +6,8 @@ export default {
       // Palette de couleurs
       colors: {
         primary: {
-          DEFAULT: "#903BFF",
-          hover: "#8C00FF",
+          DEFAULT: "#00A88F",
+          hover: "#008F7A",
           light: "#B47AFF",
           outline: "#8A38F5",
           waiting: "#A763E4",
@@ -23,7 +23,7 @@ export default {
         input: "#F7F7F7",
 
         text: {
-          primary: "#000000",
+          primary: "#1A2B4C",
           secondary: "#585858",
           muted: "#C3C3C3",
         },

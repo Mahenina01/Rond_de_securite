@@ -41,7 +41,7 @@ public class MqttConfig {
   @Value("${mqtt.data-topic}")
   private String dataTopic;
 
-  @Value("${mqtt.tls-enabled:false}")
+  @Value("${mqtt.tls-enabled:true}")
   private boolean tlsEnabled;
 
   @Bean

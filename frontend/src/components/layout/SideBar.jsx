@@ -32,7 +32,7 @@ const SideBar = () => {
   };
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen p-4 border-r shrink-0 border-text-muted bg-surface">
+    <aside className="flex flex-col w-64 min-h-screen p-4 border-r shrink-0 border-text-muted bg-text-primary">
       <nav
         className="flex flex-col flex-1 gap-2"
         aria-label="Navigation principale"
@@ -47,11 +47,11 @@ const SideBar = () => {
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              `rounded-lg ${isActive ? "bg-primary/10 text-primary" : ""}`
-            }
+            className="rounded-lg"
           >
-            <IconButton variant={item.variant} />
+            {({ isActive }) => (
+              <IconButton variant={item.variant} active={isActive} />
+            )}
           </NavLink>
         ))}
       </nav>

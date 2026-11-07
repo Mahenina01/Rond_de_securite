@@ -8,11 +8,19 @@
 
 #include "system_config.h"
 #include "hal/sim_manager.h"
+#include "hal/modem_check.h"
 
 // CONFIGURATION INTERNE
 
 #define MQTT_RX_TOPIC_SIZE 128
 #define MQTT_RX_PAYLOAD_SIZE MQTT_BUFFER_SIZE
+
+// Après ce nombre d'échecs de publication consécutifs,
+// on force une reconnexion complète.
+#define MQTT_MAX_PUBLISH_FAILURES 3
+
+// Délai maximal entre deux tentatives de reconnexion (backoff).
+#define MQTT_RECONNECT_MAX_MS 300000UL
 
 static HardwareSerial *mqttSerial = nullptr;
 
@@ -24,7 +32,13 @@ static bool clientAcquired = false;
 static bool connected = false;
 static bool subscribed = false;
 
+// Résultat de modem_check : horloge valide ou non.
+static bool clockValid = false;
+
+static uint8_t publishFailures = 0;
+
 static uint32_t lastReconnectAttempt = 0;
+static uint32_t reconnectDelayMs = MQTT_CONNECT_TIMEOUT_MS;
 
 // ACK applicatif
 static volatile bool ackReceived = false;
@@ -82,6 +96,8 @@ static bool readLine(
 
     while (millis() - start < timeoutMs)
     {
+        modem_feed_watchdog();
+
         while (mqttSerial->available())
         {
             char c = mqttSerial->read();
@@ -152,6 +168,34 @@ static bool readExact(
     return true;
 }
 
+// Jette `length` octets pour rester synchronisé avec le flux du modem
+// quand on refuse un message (topic ou payload trop grand).
+static void discardBytes(
+    size_t length,
+    uint32_t timeoutMs = 2000)
+{
+    uint32_t start = millis();
+
+    while (length > 0 &&
+           millis() - start < timeoutMs)
+    {
+        while (mqttSerial->available() && length > 0)
+        {
+            mqttSerial->read();
+            length--;
+        }
+
+        delay(1);
+    }
+}
+
+// Vide le tampon UART (à n'utiliser que hors session MQTT active).
+static void flushInput()
+{
+    while (mqttSerial->available())
+        mqttSerial->read();
+}
+
 // TRAITEMENT DES EVENEMENTS MQTT ASYNCHRONES
 static size_t extractLastLength(const String &line)
 {
@@ -164,9 +208,22 @@ static size_t extractLastLength(const String &line)
         line.substring(comma + 1).toInt());
 }
 
+// Dernier nombre d'une ligne de résultat :
+//   "+CMQTTCONNECT: 0,13" -> 13
+//   "+CMQTTSTART: 0"      -> 0
+static int lastNumber(const String &line)
+{
+    int comma = line.lastIndexOf(',');
+    int colon = line.lastIndexOf(':');
+    int p = (comma > colon) ? comma : colon;
+
+    return line.substring(p + 1).toInt();
+}
+
 static void processURC(const String &line)
 {
-    if (line.startsWith("+CMQTTCONNLOST:"))
+    if (line.startsWith("+CMQTTCONNLOST:") ||
+        line.startsWith("+CMQTTNONET"))
     {
         Serial.println("[MQTT] Connexion perdue.");
 
@@ -194,6 +251,7 @@ static void processURC(const String &line)
         if (length == 0 || length >= MQTT_RX_TOPIC_SIZE)
         {
             Serial.println("[MQTT] Longueur topic invalide.");
+            discardBytes(length);
             return;
         }
 
@@ -212,6 +270,7 @@ static void processURC(const String &line)
         if (length >= MQTT_RX_PAYLOAD_SIZE)
         {
             Serial.println("[MQTT] Payload trop grand.");
+            discardBytes(length);
             return;
         }
 
@@ -281,6 +340,59 @@ static bool waitForLine(
     return false;
 }
 
+// Attend à la fois "OK" ET la ligne de résultat "<prefix> ...", dans
+// n'importe quel ordre. Renvoie le code du résultat (0 = succès), ou -1
+// en cas d'ERROR / de timeout. Un code d'échec est renvoyé immédiatement,
+// sans attendre la fin du timeout.
+static int waitOkAndResult(
+    const char *prefix,
+    uint32_t timeoutMs)
+{
+    bool gotOk = false;
+    bool gotResult = false;
+    int code = -1;
+
+    uint32_t start = millis();
+
+    while (millis() - start < timeoutMs)
+    {
+        String line;
+
+        if (!readLine(line, 100))
+            continue;
+
+        Serial.print("[MODEM] ");
+        Serial.println(line);
+
+        if (line == "OK")
+        {
+            gotOk = true;
+        }
+        else if (line.startsWith(prefix))
+        {
+            gotResult = true;
+            code = lastNumber(line);
+        }
+        else if (line == "ERROR" ||
+                 line.startsWith("+CME ERROR:"))
+        {
+            return -1;
+        }
+        else
+        {
+            processURC(line);
+        }
+
+        if (gotOk && gotResult)
+            return code;
+    }
+
+    Serial.print("[MQTT] Timeout : ");
+    Serial.println(prefix);
+
+    return -1;
+}
+
 // ENVOI COMMANDE AT
 static bool sendAT(
     const char *command,
@@ -319,6 +431,8 @@ static bool sendATData(
 
     while (millis() - start < 5000)
     {
+        modem_feed_watchdog();
+
         while (mqttSerial->available())
         {
             char c = mqttSerial->read();
@@ -349,6 +463,50 @@ static bool sendATData(
     return waitForLine("OK", 10000);
 }
 
+// NETTOYAGE D'UNE ANCIENNE SESSION DU MODEM
+// (fonction publique, déclarée dans mqtt_manager.h)
+//
+// Si l'ESP32 redémarre, le SIM7600 reste allumé avec son ancienne session
+// MQTT, et AT+CMQTTSTART échoue. Ce nettoyage doit être fait AVANT le
+// démarrage du service. Les ERROR / codes 9 ou 11 sont normaux ici
+// (rien à fermer).
+void cleanupModemMQTT()
+{
+    char command[48];
+
+    Serial.println("[MQTT] Nettoyage session modem...");
+
+    snprintf(command, sizeof(command),
+             "AT+CMQTTDISC=%d,60\r\n", MQTT_CLIENT_INDEX);
+    mqttSerial->print(command);
+    delay(1000);
+
+    snprintf(command, sizeof(command),
+             "AT+CMQTTREL=%d\r\n", MQTT_CLIENT_INDEX);
+    mqttSerial->print(command);
+    delay(500);
+
+    mqttSerial->print("AT+CMQTTSTOP\r\n");
+    delay(1000);
+
+    flushInput();
+
+    serviceStarted = false;
+    clientAcquired = false;
+    connected = false;
+    subscribed = false;
+}
+
+// Échec de connexion : on libère le modem et on renvoie false.
+static bool connectFailed(const char *message)
+{
+    Serial.println(message);
+
+    cleanupModemMQTT();
+
+    return false;
+}
+
 // CONFIGURATION TLS
 static bool configureTLS()
 {
@@ -376,11 +534,17 @@ static bool configureTLS()
     if (!sendAT(command))
         return false;
 
+    // Si l'horloge du module est invalide, la vérification des dates du
+    // certificat échouerait : on l'ignore dans ce cas uniquement.
     snprintf(
         command,
         sizeof(command),
-        "AT+CSSLCFG=\"ignorelocaltime\",%d,0",
-        MQTT_SSL_CONTEXT);
+        "AT+CSSLCFG=\"ignorelocaltime\",%d,%d",
+        MQTT_SSL_CONTEXT,
+        clockValid ? 0 : 1);
+
+    if (!clockValid)
+        Serial.println("[TLS] Horloge invalide : verification de date ignoree.");
 
     if (!sendAT(command))
         return false;
@@ -442,11 +606,15 @@ static bool startMQTTService()
 
     mqttSerial->print("AT+CMQTTSTART\r\n");
 
-    if (!waitForLine("OK", 15000))
-        return false;
+    // Le modem répond "+CMQTTSTART: 0" et "OK" (ordre non garanti).
+    int code = waitOkAndResult("+CMQTTSTART:", 15000);
 
-    if (!waitForLine("+CMQTTSTART: 0", 15000))
+    if (code != 0)
+    {
+        Serial.print("[MQTT] CMQTTSTART echec, code ");
+        Serial.println(code);
         return false;
+    }
 
     serviceStarted = true;
 
@@ -461,10 +629,12 @@ static bool acquireMQTTClient()
 
     char command[160];
 
+    // Dernier paramètre = 1 : connexion SSL/TLS.
+    // (Forme testée et validée sur le SIM7600E.)
     snprintf(
         command,
         sizeof(command),
-        "AT+CMQTTACCQ=%d,\"%s\",1,4",
+        "AT+CMQTTACCQ=%d,\"%s\",1",
         MQTT_CLIENT_INDEX,
         MQTT_CLIENT_ID);
 
@@ -501,6 +671,9 @@ void mqtt_init()
     ackReceived = false;
     ackWaiting = false;
 
+    publishFailures = 0;
+    reconnectDelayMs = MQTT_CONNECT_TIMEOUT_MS;
+
     Serial.println("[MQTT] Gestionnaire initialise.");
 
     Serial.print("[MQTT] DATA : ");
@@ -523,24 +696,32 @@ bool mqtt_connect()
     Serial.println(" CONNEXION HIVEMQ CLOUD");
     Serial.println("================================");
 
-    if (!startMQTTService())
+    // 1. Vérification du modem (réseau, SIM, IP, horloge, certificat).
+    //    Implémentée dans modem_check.cpp.
+    ModemStatus status;
+
+    if (!modem_check_all(*mqttSerial, MQTT_TLS_CA_FILE, status))
     {
-        Serial.println("[MQTT] Impossible de demarrer le service.");
+        Serial.println("[MQTT] Verification modem echouee, connexion annulee.");
         return false;
     }
+
+    clockValid = status.clockValid;
+
+    // 2. Nettoyage d'une éventuelle session précédente.
+    cleanupModemMQTT();
+
+    // 3. Service, client, TLS.
+    if (!startMQTTService())
+        return connectFailed("[MQTT] Impossible de demarrer le service.");
 
     if (!acquireMQTTClient())
-    {
-        Serial.println("[MQTT] Acquisition client impossible.");
-        return false;
-    }
+        return connectFailed("[MQTT] Acquisition client impossible.");
 
     if (!configureTLS())
-    {
-        Serial.println("[MQTT] Configuration TLS impossible.");
-        return false;
-    }
+        return connectFailed("[MQTT] Configuration TLS impossible.");
 
+    // 4. Connexion au broker.
     char command[512];
 
     snprintf(
@@ -559,24 +740,21 @@ bool mqtt_connect()
     mqttSerial->print(command);
     mqttSerial->print("\r\n");
 
-    if (!waitForLine("OK", 15000))
-    {
-        Serial.println("[MQTT] Commande CONNECT echouee.");
-        return false;
-    }
+    // "OK" + "+CMQTTCONNECT: <client>,<code>" ; code 0 = succès.
+    int code = waitOkAndResult("+CMQTTCONNECT:", 75000);
 
-    // Confirmation asynchrone du broker.
-    if (!waitForLine("+CMQTTCONNECT: 0,0", 75000))
+    if (code != 0)
     {
-        Serial.println("[MQTT] Connexion broker echouee.");
-        return false;
+        Serial.print("[MQTT] Connexion broker echouee, code ");
+        Serial.println(code);
+        return connectFailed("[MQTT] Verifiez identifiants, SNI, certificat et horloge.");
     }
 
     connected = true;
 
     Serial.println("[MQTT] Connexion HiveMQ etablie.");
 
-    // Abonnement au topic ACK.
+    // 5. Abonnement au topic ACK.
     size_t length = strlen(topicAck);
 
     snprintf(
@@ -588,19 +766,52 @@ bool mqtt_connect()
         MQTT_QOS);
 
     if (!sendATData(command, topicAck, length))
-        return false;
+        return connectFailed("[MQTT] Echec SUBTOPIC.");
 
-    if (!sendAT("AT+CMQTTSUB=0", 15000))
-        return false;
+    snprintf(
+        command,
+        sizeof(command),
+        "AT+CMQTTSUB=%d",
+        MQTT_CLIENT_INDEX);
 
-    if (!waitForLine("+CMQTTSUB: 0,0", 15000))
-        return false;
+    mqttSerial->print(command);
+    mqttSerial->print("\r\n");
+
+    code = waitOkAndResult("+CMQTTSUB:", 15000);
+
+    if (code != 0)
+    {
+        Serial.print("[MQTT] Abonnement echoue, code ");
+        Serial.println(code);
+        return connectFailed("[MQTT] Echec abonnement ACK.");
+    }
 
     subscribed = true;
+
+    publishFailures = 0;
+    reconnectDelayMs = MQTT_CONNECT_TIMEOUT_MS;
 
     Serial.println("[MQTT] Abonnement ACK confirme.");
 
     return true;
+}
+
+// Échec de publication : après plusieurs échecs de suite, on considère
+// la connexion comme morte pour déclencher une reconnexion.
+static bool publishFailed(const char *message)
+{
+    Serial.println(message);
+
+    if (++publishFailures >= MQTT_MAX_PUBLISH_FAILURES)
+    {
+        Serial.println("[MQTT] Trop d'echecs de publication, reconnexion forcee.");
+
+        connected = false;
+        subscribed = false;
+        publishFailures = 0;
+    }
+
+    return false;
 }
 
 // PUBLICATION LOG RFID
@@ -647,7 +858,7 @@ bool mqtt_publish_log(const LogEntry &entry)
         static_cast<unsigned int>(topicLength));
 
     if (!sendATData(command, topicData, topicLength))
-        return false;
+        return publishFailed("[MQTT] Echec envoi topic.");
 
     // 2. Payload JSON.
     snprintf(
@@ -658,7 +869,7 @@ bool mqtt_publish_log(const LogEntry &entry)
         static_cast<unsigned int>(payloadLength));
 
     if (!sendATData(command, payload, payloadLength))
-        return false;
+        return publishFailed("[MQTT] Echec envoi payload.");
 
     // 3. Publication QoS 1.
     snprintf(
@@ -671,12 +882,16 @@ bool mqtt_publish_log(const LogEntry &entry)
     mqttSerial->print(command);
     mqttSerial->print("\r\n");
 
-    if (!waitForLine("OK", 15000))
-        return false;
+    int code = waitOkAndResult("+CMQTTPUB:", 65000);
 
-    if (!waitForLine("+CMQTTPUB: 0,0", 65000))
-        return false;
+    if (code != 0)
+    {
+        Serial.print("[MQTT] Publication echouee, code ");
+        Serial.println(code);
+        return publishFailed("[MQTT] Publication non confirmee.");
+    }
 
+    publishFailures = 0;
     ackWaiting = false;
 
     Serial.println("[MQTT] Publication confirmee par le broker.");
@@ -748,16 +963,25 @@ void mqtt_disconnect()
     if (!mqttSerial)
         return;
 
+    char command[48];
+
     if (connected)
     {
-        sendAT("AT+CMQTTDISC=0,120", 15000);
+        snprintf(command, sizeof(command),
+                 "AT+CMQTTDISC=%d,120", MQTT_CLIENT_INDEX);
 
-        waitForLine("+CMQTTDISC: 0,0", 15000);
+        mqttSerial->print(command);
+        mqttSerial->print("\r\n");
+
+        waitOkAndResult("+CMQTTDISC:", 15000);
     }
 
     if (clientAcquired)
     {
-        sendAT("AT+CMQTTREL=0", 15000);
+        snprintf(command, sizeof(command),
+                 "AT+CMQTTREL=%d", MQTT_CLIENT_INDEX);
+
+        sendAT(command, 15000);
     }
 
     if (serviceStarted)
@@ -773,7 +997,7 @@ void mqtt_disconnect()
     Serial.println("[MQTT] Deconnexion terminee.");
 }
 
-// RECONNEXION
+// RECONNEXION (avec délai croissant entre les tentatives)
 void mqtt_maintain()
 {
     mqtt_loop();
@@ -781,11 +1005,8 @@ void mqtt_maintain()
     if (connected)
         return;
 
-    if (millis() - lastReconnectAttempt <
-        MQTT_CONNECT_TIMEOUT_MS)
-    {
+    if (millis() - lastReconnectAttempt < reconnectDelayMs)
         return;
-    }
 
     lastReconnectAttempt = millis();
 
@@ -794,5 +1015,16 @@ void mqtt_maintain()
     // Nettoyer l'ancienne session si nécessaire.
     mqtt_disconnect();
 
-    mqtt_connect();
+    if (!mqtt_connect())
+    {
+        // Backoff : on double le délai jusqu'au maximum.
+        reconnectDelayMs *= 2;
+
+        if (reconnectDelayMs > MQTT_RECONNECT_MAX_MS)
+            reconnectDelayMs = MQTT_RECONNECT_MAX_MS;
+
+        Serial.print("[MQTT] Prochaine tentative dans ");
+        Serial.print(reconnectDelayMs / 1000);
+        Serial.println(" s.");
+    }
 }

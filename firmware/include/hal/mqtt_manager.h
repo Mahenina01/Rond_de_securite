@@ -9,6 +9,9 @@
 // Initialisation du gestionnaire.
 void mqtt_init();
 
+// Nettoyage du modem MQTT.
+void cleanupModemMQTT();
+
 // Connexion HiveMQ Cloud avec TLS.
 bool mqtt_connect();
 

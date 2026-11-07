@@ -39,7 +39,7 @@
 #define MQTT_QOS 1
 
 // Configuration de connexion
-#define MQTT_KEEPALIVE_S 30
+#define MQTT_KEEPALIVE_S 60
 #define MQTT_CONNECT_TIMEOUT_MS 15000
 
 // Gestion des messages
