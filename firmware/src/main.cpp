@@ -4,21 +4,44 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
-#include "hal/rfid_rc522.h"
-#include "hal/rtc_ds3231.h"
-#include "hal/softap_manager.h"
+#include "badge_map.h"
+#include "hal/buzzer.h"
 #include "hal/sim_manager.h"
 #include "hal/mqtt_manager.h"
 #include "log_format.h"
 #include "log_sync.h"
 #include "pins_config.h"
 #include "system_config.h"
+#include "time_sync.h"
 
 // Commandes de test sur le moniteur série :
 //   'l' + Entrée : crée un log de test (EN_ATTENTE) et lance l'envoi
 //   's' + Entrée : affiche le nombre de logs par statut
+//   't' + Entrée : affiche l'heure du DS3231 (UTC et locale)
+//   'b' + Entrée : fait sonner le buzzer ("pip! pip!")
+//   'T' + Entrée : force une resynchronisation de l'heure avec le réseau
 //   'C' + Entrée : EFFACE tous les logs (majuscule, pour éviter une erreur)
 #define ENABLE_SERIAL_TEST_LOG 1
+
+// Anti-rebond RFID : un badge maintenu sur le lecteur, ou présenté deux fois
+// de suite, ne crée qu'un seul log pendant ce délai.
+#ifndef RFID_DEBOUNCE_MS
+#define RFID_DEBOUNCE_MS 3000
+#endif
+
+// Bip long quand un passage est refusé (badge inconnu) ou non enregistré.
+// Mettre à 0 pour ne faire sonner que les passages valides.
+#ifndef BUZZER_SIGNAL_ERRORS
+#define BUZZER_SIGNAL_ERRORS 1
+#endif
+
+// Resynchronisation de l'heure : toutes les 24 h, et 10 min après un échec.
+#ifndef CLOCK_RESYNC_INTERVAL_MS
+#define CLOCK_RESYNC_INTERVAL_MS (24UL * 60UL * 60UL * 1000UL)
+#endif
+#ifndef CLOCK_RETRY_INTERVAL_MS
+#define CLOCK_RETRY_INTERVAL_MS (10UL * 60UL * 1000UL)
+#endif
 
 // ============================================================
 // ETATS DU SYSTEME
@@ -298,15 +321,13 @@ static void printPartitions()
 // COMMANDES DE TEST (moniteur série)
 // ============================================================
 
-#if ENABLE_SERIAL_TEST_LOG
-
-// Crée un log de test avec l'heure du DS3231.
-static void createTestLog()
+// Enregistre un passage dans LittleFS avec l'heure RÉELLE du DS3231.
+static bool recordScan(const char *agentId)
 {
   if (!storageReady)
   {
-    Serial.println("[TEST] Stockage indisponible (LittleFS non monte).");
-    return;
+    Serial.println("[RFID] Stockage indisponible : passage NON enregistre.");
+    return false;
   }
 
   char timestamp[RTC_ISO8601_BUF_SIZE];
@@ -322,16 +343,88 @@ static void createTestLog()
   {
     Serial.print("[TEST] Log cree (ligne ");
     Serial.print(lineIndex);
-    Serial.println("). L'id a utiliser pour l'ACK s'affiche a la publication.");
+    Serial.println(")");
+
+    // Heure locale, pour la lecture sur le moniteur (le log reste en UTC).
+    char local[TIME_LOCAL_STR_LEN];
+
+    if (timeOk && time_utc_iso_to_local(timestamp, local, sizeof(local)))
+    {
+      Serial.print("[RFID] Heure locale : ");
+      Serial.println(local);
+    }
 
     // Prévient le module de synchronisation.
     log_sync_request();
+
+    return true;
   }
-  else
-  {
-    Serial.println("[TEST] Echec creation du log.");
-  }
+
+  Serial.println("[RFID] Echec de l'enregistrement du passage.");
+
+  return false;
 }
+
+// Lecture du badge, appelée à chaque tour de loop() quel que soit l'état
+// du réseau : les passages sont enregistrés même hors ligne.
+// RFID_IsCardPresent() attend au plus 100 ms un badge.
+static void handleRfid()
+{
+  if (!rfidReady)
+    return;
+
+  if (!RFID_IsCardPresent())
+    return;
+
+  char uid[RFID_UID_MAX_STR_LEN];
+
+  if (!RFID_ReadUID(uid, sizeof(uid)))
+    return;
+
+  uint32_t now = millis();
+
+  bool sameBadge = (strcmp(uid, lastUid) == 0);
+  bool recent = (now - lastUidMs) < RFID_DEBOUNCE_MS;
+
+  // Un badge maintenu sur le lecteur prolonge l'anti-rebond.
+  lastUidMs = now;
+
+  if (sameBadge && recent)
+    return;
+
+  strncpy(lastUid, uid, sizeof(lastUid) - 1);
+  lastUid[sizeof(lastUid) - 1] = '\0';
+
+  Serial.print("[RFID] UID lu : ");
+  Serial.println(uid);
+
+  char agentId[LOG_FIELD_AGENT_LEN + 1];
+
+  bool known = badge_agent_id(uid, agentId);
+
+  if (!known)
+  {
+    Serial.print("[RFID] Badge inconnu, agent note : ");
+    Serial.println(agentId);
+  }
+
+  bool stored = recordScan(agentId);
+
+  // "pip! pip!" : badge connu ET passage enregistré.
+  // Bip long : badge inconnu (enregistré quand même) ou enregistrement raté.
+  if (known && stored)
+    buzzer_valid();
+#if BUZZER_SIGNAL_ERRORS
+  else
+    buzzer_error();
+#endif
+}
+
+// ============================================================
+// COMMANDES DE TEST (moniteur série)
+// ============================================================
+
+#if ENABLE_SERIAL_TEST_LOG
 
 static void printStorageStats()
 {
@@ -349,6 +442,29 @@ static void printStorageStats()
 
   Serial.print("[TEST] ECHEC      : ");
   Serial.println(static_cast<unsigned int>(storage_count_by_status(LOG_STATUS_FAILED)));
+}
+
+static void printRtcTime()
+{
+  char buf[RTC_ISO8601_BUF_SIZE];
+
+  if (rtcReady && rtc_now_iso8601(buf, sizeof(buf)))
+  {
+    Serial.print("[TEST] DS3231 (UTC)  : ");
+    Serial.println(buf);
+
+    char local[TIME_LOCAL_STR_LEN];
+
+    if (time_utc_iso_to_local(buf, local, sizeof(local)))
+    {
+      Serial.print("[TEST] Heure locale  : ");
+      Serial.println(local);
+    }
+  }
+  else
+  {
+    Serial.println("[TEST] DS3231 : heure invalide ou module absent.");
+  }
 }
 
 // Efface tous les logs (test uniquement).
@@ -377,7 +493,14 @@ static void handleSerialTestCommands()
     char c = Serial.read();
 
     if (c == 'l')
-      createTestLog();
+    {
+      if (recordScan("AG001"))
+        buzzer_valid();
+    }
+    else if (c == 'b')
+    {
+      buzzer_valid();
+    }
     else if (c == 's')
       printStorageStats();
     else if (c == 'C')
@@ -394,6 +517,9 @@ static void handleSerialTestCommands()
 void setup()
 {
   Serial.begin(115200);
+
+  // Buzzer éteint dès le démarrage.
+  buzzer_init();
 
   delay(1000);
 
@@ -441,17 +567,18 @@ void setup()
     rfidScanQueue = xQueueCreate(8, sizeof(RfidScanEvent));
     if (rfidScanQueue == nullptr)
     {
-      Serial.println("[ERROR] Creation de la file RFID impossible.");
-    }
-    else if (xTaskCreate(
-                 rfidTask,
-                 "rfid-reader",
-                 4096,
-                 nullptr,
-                 1,
-                 nullptr) != pdPASS)
-    {
-      Serial.println("[ERROR] Creation de la tache RFID impossible.");
+      Serial.print("[PASS] DS3231 pret, heure UTC : ");
+      Serial.print(buf);
+
+      char local[TIME_LOCAL_STR_LEN];
+
+      if (time_utc_iso_to_local(buf, local, sizeof(local)))
+      {
+        Serial.print("  |  locale : ");
+        Serial.print(local);
+      }
+
+      Serial.println();
     }
     else
     {
@@ -705,8 +832,29 @@ void loop()
 
       Serial.print("[SYSTEM] MQTT : ");
 
-      Serial.println(
-          mqtt_is_connected() ? "CONNECTE" : "DECONNECTE");
+      Serial.print(mqtt_is_connected() ? "CONNECTE" : "DECONNECTE");
+
+      char now[RTC_ISO8601_BUF_SIZE];
+
+      if (rtcReady && rtc_now_iso8601(now, sizeof(now)))
+      {
+        char local[TIME_LOCAL_STR_LEN];
+
+        Serial.print("  |  UTC : ");
+        Serial.print(now);
+
+        if (time_utc_iso_to_local(now, local, sizeof(local)))
+        {
+          Serial.print("  |  Locale : ");
+          Serial.print(local);
+        }
+
+        Serial.println();
+      }
+      else
+      {
+        Serial.println("  |  Heure : invalide");
+      }
     }
 
     break;

@@ -8,9 +8,9 @@ export default {
         primary: {
           DEFAULT: "#00A88F",
           hover: "#008F7A",
-          light: "#B47AFF",
-          outline: "#8A38F5",
-          waiting: "#A763E4",
+          light: "#007F70",
+          outline: "#00A88F",
+          waiting: "#008F7A",
         },
 
         secondary: {
