@@ -1,5 +1,5 @@
 
-#include "../include/hal/rfid_rc522.h"
+#include "../include/hal/rfid_pn532.h"
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -31,8 +31,7 @@ bool RFID_Init(uint8_t ssPin, uint8_t sckPin, uint8_t misoPin, uint8_t mosiPin)
         sckPin,
         misoPin,
         mosiPin,
-        ssPin
-    );
+        ssPin);
 
     // Creation du PN532
     static Adafruit_PN532 instance(ssPin, rfidSPI);
@@ -56,8 +55,7 @@ bool RFID_Init(uint8_t ssPin, uint8_t sckPin, uint8_t misoPin, uint8_t mosiPin)
     Serial.printf(
         "[PN532] Firmware : %u.%u\n",
         (version >> 16) & 0xFF,
-        (version >> 8) & 0xFF
-    );
+        (version >> 8) & 0xFF);
 
     // Configuration du lecteur
     pn532->SAMConfig();
@@ -87,8 +85,7 @@ bool RFID_IsCardPresent(void)
         PN532_MIFARE_ISO14443A,
         tempUID,
         &tempUIDLength,
-        100
-    );
+        100);
 
     if (!success)
         return false;
@@ -156,15 +153,13 @@ bool RFID_ReadUID(char *uidStrOut, size_t maxLen)
 void RFID_SetupWakeupIRQ(void)
 {
     Serial.println(
-        "[PN532] Wakeup IRQ non configure dans ce driver."
-    );
+        "[PN532] Wakeup IRQ non configure dans ce driver.");
 }
 
 void RFID_PowerDown(void)
 {
     Serial.println(
-        "[PN532] PowerDown non configure dans ce driver."
-    );
+        "[PN532] PowerDown non configure dans ce driver.");
 }
 
 void RFID_WakeUp(void)
