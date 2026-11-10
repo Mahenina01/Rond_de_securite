@@ -37,6 +37,15 @@ const locationsService = {
     return response.data;
   },
 
+  updateStatus: async (id, isActive) => {
+    const response = await api.patch(
+      endpoints.locations.updateStatus(id),
+      null,
+      { params: { isActive } },
+    );
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await api.delete(endpoints.locations.delete(id));
     return response.data;

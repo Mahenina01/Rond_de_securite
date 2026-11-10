@@ -10,9 +10,9 @@ public record LogsResponse(
 
     Long id,
     UUID eventUuid,
-    String agentCode,
+    String agentName,
     String deviceCode,
-    Long locationId,
+    String location,
     LogStatus status,
     Instant timestamp,
     Instant receivedAt

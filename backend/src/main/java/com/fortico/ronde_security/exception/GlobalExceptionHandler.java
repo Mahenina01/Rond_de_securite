@@ -49,6 +49,17 @@ public class GlobalExceptionHandler {
         request);
   }
 
+  @ExceptionHandler(ResourceInUseException.class)
+  public ResponseEntity<ApiError> handleResourceInUse(
+      ResourceInUseException ex,
+      HttpServletRequest request) {
+
+    return buildResponse(
+        HttpStatus.CONFLICT,
+        ex.getMessage(),
+        request);
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ApiError> handleValidation(
       MethodArgumentNotValidException ex,

@@ -1,8 +1,10 @@
 import { useState } from "react";
 
 import searchIcon from "../../assets/icons/search.svg";
+import FilterIcon from "../../assets/icons/filter.svg?react";
 import EyeIcon from "../../assets/icons/show-eye.svg?react";
 import EyeOffIcon from "../../assets/icons/hide-eye.svg?react";
+import useLanguage from "../../context/useLanguage";
 
 const inputVariants = {
   default: {
@@ -14,6 +16,10 @@ const inputVariants = {
     placeholder: "Entrez votre adresse e-mail",
   },
   search: {
+    type: "search",
+    placeholder: "Rechercher...",
+  },
+  searchFilter: {
     type: "search",
     placeholder: "Rechercher...",
   },
@@ -29,16 +35,19 @@ const Input = ({
   name,
   value,
   onChange,
+  onFilterClick,
   placeholder,
   required = false,
   className = "",
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const { t } = useLanguage();
 
   const config = inputVariants[variant] ?? inputVariants.default;
 
   const isPassword = variant === "password";
-  const isSearch = variant === "search";
+  const isSearch = variant === "search" || variant === "searchFilter";
+  const hasFilterButton = variant === "searchFilter";
 
   const inputType = isPassword && showPassword ? "text" : config.type;
 
@@ -46,7 +55,7 @@ const Input = ({
     <div className="flex flex-col w-full gap-2">
       {label && (
         <label htmlFor={name} className="text-sm font-medium text-gray-700">
-          {label}
+          {t(label)}
           {required && <span className="ml-1 text-red-500">*</span>}
         </label>
       )}
@@ -65,7 +74,7 @@ const Input = ({
           id={name}
           name={name}
           type={inputType}
-          placeholder={placeholder ?? config.placeholder}
+          placeholder={t(placeholder ?? config.placeholder)}
           value={value}
           onChange={onChange}
           required={required}
@@ -77,10 +86,23 @@ const Input = ({
             placeholder:text-text-muted
             focus:border-primary focus:ring-2 focus:ring-blue-100
             ${isSearch ? "pl-10" : ""}
+            ${hasFilterButton ? "pr-12" : ""}
             ${isPassword ? "pr-12" : ""}
             ${className}
           `}
         />
+
+        {hasFilterButton && (
+          <button
+            type="button"
+            onClick={onFilterClick}
+            disabled={!onFilterClick}
+            aria-label={t("Ouvrir les filtres")}
+            className="absolute flex items-center justify-center p-1 transition-colors rounded right-3 text-text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FilterIcon aria-hidden="true" className="w-5 h-5 text-primary" />
+          </button>
+        )}
 
         {isPassword && (
           <button
@@ -88,8 +110,8 @@ const Input = ({
             onClick={() => setShowPassword((previous) => !previous)}
             aria-label={
               showPassword
-                ? "Masquer le mot de passe"
-                : "Afficher le mot de passe"
+                ? t("Masquer le mot de passe")
+                : t("Afficher le mot de passe")
             }
             aria-pressed={showPassword}
             className="absolute flex items-center justify-center p-1 rounded right-3"

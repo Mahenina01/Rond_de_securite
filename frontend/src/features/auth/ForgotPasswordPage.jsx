@@ -3,8 +3,10 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import ForgotPassword from "../../assets/icons/forgot-password.svg?react";
 import { useNavigate } from "react-router";
+import useLanguage from "../../context/useLanguage";
 
 export default function ForgotPasswordPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -28,18 +30,18 @@ export default function ForgotPasswordPage() {
         </div>
         <div className="flex flex-col gap-2 text-center">
           <h1 className="text-xl font-black tracking-tight text-text-primary">
-            MOT DE PASSE OUBLIÉ ?
+            {t("MOT DE PASSE OUBLIÉ ?")}
           </h1>
           <p className="text-sm leading-relaxed text-text-secondary">
-            Pas d'inquiétude. Saisissez votre adresse e-mail et nous vous
-            enverrons un code de vérification pour réinitialiser votre mot de
-            passe.
+            {t(
+              "Pas d'inquiétude. Saisissez votre adresse e-mail et nous vous enverrons un code de vérification pour réinitialiser votre mot de passe.",
+            )}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-[24px]">
           <Input
             variant="email"
-            label="Adresse E-mail"
+            label={t("Adresse E-mail")}
             name="email"
             placeholder="example0gmail.com"
             value={email}
@@ -52,7 +54,7 @@ export default function ForgotPasswordPage() {
               variant="outline"
               className="justify-center w-1/2"
             >
-              Retour
+              {t("Retour")}
             </Button>
             <Button
               type="submit"
@@ -61,7 +63,7 @@ export default function ForgotPasswordPage() {
               disabled={!email || isSubmitting}
               className="justify-center w-1/2"
             >
-              {isSubmitting ? "Envoi en cours..." : "Envoyer"}
+              {isSubmitting ? t("Envoi en cours...") : t("Envoyer")}
             </Button>
           </div>
         </form>

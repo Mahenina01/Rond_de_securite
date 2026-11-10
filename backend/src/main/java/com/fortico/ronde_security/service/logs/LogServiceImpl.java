@@ -10,6 +10,7 @@ import java.util.Set;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,6 +26,7 @@ import com.fortico.ronde_security.repo.AgentRepository;
 import com.fortico.ronde_security.repo.DevicesRepository;
 import com.fortico.ronde_security.repo.LocationRepository;
 import com.fortico.ronde_security.repo.LogsRepository;
+import com.fortico.ronde_security.service.dashboard.DashboardStatsChangedEvent;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.AllArgsConstructor;
@@ -39,6 +41,7 @@ public class LogServiceImpl implements LogService {
   private final DevicesRepository devicesRepository;
   private final LocationRepository locationRepository;
   private final LogsRealtimeService logsRealtimeService;
+  private final ApplicationEventPublisher eventPublisher;
 
   // Créer un log
 
@@ -80,6 +83,10 @@ public class LogServiceImpl implements LogService {
 
     // Diffuser le log aux clients WebSocket abonnés
     logsRealtimeService.publishLog(response);
+    eventPublisher.publishEvent(new DashboardStatsChangedEvent());
+    if (savedLog.getStatus() == LogStatus.SUCCESS) {
+      eventPublisher.publishEvent(new SuccessfulLogRecordedEvent());
+    }
 
     return response;
   }
@@ -90,9 +97,9 @@ public class LogServiceImpl implements LogService {
   public List<LogsResponse> getLogs(
       LogStatus status,
       LocalDate date,
-      Long agentId,
+      String agentName,
       Long deviceId,
-      Long locationId,
+      String locationName,
       Instant from,
       Instant to,
       String sort,
@@ -132,9 +139,9 @@ public class LogServiceImpl implements LogService {
             root.get("timestamp"), end));
       }
 
-      if (agentId != null) {
+      if (agentName != null && !agentName.isBlank()) {
         predicates.add(cb.equal(
-            root.get("agent").get("id"), agentId));
+            root.get("agent").get("name"), agentName));
       }
 
       if (deviceId != null) {
@@ -142,9 +149,9 @@ public class LogServiceImpl implements LogService {
             root.get("device").get("id"), deviceId));
       }
 
-      if (locationId != null) {
+      if (locationName != null && !locationName.isBlank()) {
         predicates.add(cb.equal(
-            root.get("locationId").get("id"), locationId));
+            root.get("locationId").get("name"), locationName));
       }
 
       if (from != null) {
@@ -163,7 +170,7 @@ public class LogServiceImpl implements LogService {
     // Autoriser uniquement les champs de tri prévus
     Set<String> allowedSortFields = Set.of(
         "id", "timestamp", "receivedAt", "status",
-        "agentCode", "deviceCode", "locationId");
+          "agentName", "deviceCode", "locationId");
 
     String sortField = (sort == null || sort.isBlank())
         ? "timestamp"
@@ -189,7 +196,7 @@ public class LogServiceImpl implements LogService {
     }
 
     String sortProperty = switch (sortField) {
-      case "agentCode" -> "agent.agentCode";
+      case "agentName" -> "agent.name";
       case "deviceCode" -> "device.deviceCode";
       case "locationId" -> "locationId.id";
       default -> sortField;
@@ -222,9 +229,9 @@ public class LogServiceImpl implements LogService {
     return new LogsResponse(
         log.getId(),
         log.getEventUuid(),
-        log.getAgent().getAgentCode(),
+        log.getAgent().getName(),
         log.getDevice().getDeviceCode(),
-        log.getLocationId().getId(),
+        log.getLocationId().getName(),
         log.getStatus(),
         log.getTimestamp(),
         log.getReceivedAt());

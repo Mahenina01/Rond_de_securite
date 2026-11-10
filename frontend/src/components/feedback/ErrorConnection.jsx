@@ -1,10 +1,13 @@
 import ErrorIcon from "../../assets/icons/wifi-off.svg?react";
+import useLanguage from "../../context/useLanguage";
 
 const ErrorConnection = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="flex flex-row items-center justify-start w-auto gap-1 py-4 px-3 rounded-[20px] bg-surface/80">
       <ErrorIcon className={"h-7 w-7 text-danger"} />
-      <p>Connexion induisponible !</p>
+      <p>{t("Connexion induisponible !")}</p>
     </div>
   );
 };

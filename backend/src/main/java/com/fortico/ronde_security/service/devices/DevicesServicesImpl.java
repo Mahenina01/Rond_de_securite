@@ -10,11 +10,14 @@ import com.fortico.ronde_security.dtos.devices.DeviceProvisioningResponse;
 import com.fortico.ronde_security.dtos.devices.DevicesRequest;
 import com.fortico.ronde_security.dtos.devices.DevicesResponse;
 import com.fortico.ronde_security.exception.DuplicateResourceException;
+import com.fortico.ronde_security.exception.ResourceInUseException;
 import com.fortico.ronde_security.exception.ResourceNotFoundException;
 import com.fortico.ronde_security.model.Agents;
 import com.fortico.ronde_security.model.Devices;
 import com.fortico.ronde_security.repo.AgentRepository;
 import com.fortico.ronde_security.repo.DevicesRepository;
+import com.fortico.ronde_security.repo.LogsRepository;
+import com.fortico.ronde_security.service.dashboard.DeviceStatusHistoryService;
 import com.fortico.ronde_security.utils.DeviceCryptoUtils;
 
 @Service
@@ -23,15 +26,21 @@ public class DevicesServicesImpl implements DevicesService {
 
   private final DevicesRepository devicesRepository;
   private final AgentRepository agentRepository;
+  private final LogsRepository logsRepository;
+  private final DeviceStatusHistoryService deviceStatusHistoryService;
   private final DeviceCryptoUtils deviceCryptoUtils;
 
   public DevicesServicesImpl(
       DevicesRepository devicesRepository,
       AgentRepository agentRepository,
+      LogsRepository logsRepository,
+      DeviceStatusHistoryService deviceStatusHistoryService,
       DeviceCryptoUtils deviceCryptoUtils) {
 
     this.devicesRepository = devicesRepository;
     this.agentRepository = agentRepository;
+    this.logsRepository = logsRepository;
+    this.deviceStatusHistoryService = deviceStatusHistoryService;
     this.deviceCryptoUtils = deviceCryptoUtils;
   }
 
@@ -59,6 +68,7 @@ public class DevicesServicesImpl implements DevicesService {
     device.setIsActive(true);
 
     Devices saved = devicesRepository.save(device);
+    deviceStatusHistoryService.recordCreated(saved);
 
     return new DeviceProvisioningResponse(
         saved.getId(),
@@ -113,6 +123,11 @@ public class DevicesServicesImpl implements DevicesService {
   @Override
   public void deleteDevice(Long id) {
     Devices device = findDeviceOrThrow(id);
+    if (logsRepository.existsByDevice_Id(id)) {
+      throw new ResourceInUseException(
+          "Impossible de supprimer cet appareil : des logs y sont associés.");
+    }
+    deviceStatusHistoryService.recordDeleted(device);
     devicesRepository.delete(device);
   }
 
@@ -127,9 +142,14 @@ public class DevicesServicesImpl implements DevicesService {
     }
 
     Devices device = findDeviceOrThrow(id);
-    device.setIsActive(isActive);
+    if (!isActive.equals(device.getIsActive())) {
+      device.setIsActive(isActive);
+      Devices updatedDevice = devicesRepository.save(device);
+      deviceStatusHistoryService.recordStatusChange(updatedDevice);
+      return toDevicesResponse(updatedDevice);
+    }
 
-    return toDevicesResponse(devicesRepository.save(device));
+    return toDevicesResponse(device);
   }
 
   // Récupération par code

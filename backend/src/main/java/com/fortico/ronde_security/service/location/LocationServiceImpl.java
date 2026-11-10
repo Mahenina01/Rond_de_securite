@@ -5,10 +5,13 @@ import com.fortico.ronde_security.dtos.location.LocationResponse;
 import com.fortico.ronde_security.dtos.agent.AgentResponse;
 
 import com.fortico.ronde_security.exception.ResourceNotFoundException;
+import com.fortico.ronde_security.exception.ResourceInUseException;
 import com.fortico.ronde_security.exception.DuplicateAgentCodeException;
 
+import com.fortico.ronde_security.repo.AlertsRepository;
 import com.fortico.ronde_security.repo.AgentRepository;
 import com.fortico.ronde_security.repo.LocationRepository;
+import com.fortico.ronde_security.repo.LogsRepository;
 
 import com.fortico.ronde_security.model.Agents;
 import com.fortico.ronde_security.model.Location;
@@ -26,6 +29,8 @@ public class LocationServiceImpl implements LocationService {
 
     private final LocationRepository locationRepository;
     private final AgentRepository agentRepository;
+    private final AlertsRepository alertsRepository;
+    private final LogsRepository logsRepository;
 
     @Override
     public LocationResponse create(LocationRequest request) {
@@ -150,13 +155,11 @@ public class LocationServiceImpl implements LocationService {
 
         Location location = findLocation(id);
 
-        /*
-         * Avant une suppression physique, vérifier
-         * les références dans Logs et Alerts.
-         *
-         * Une désactivation est préférable lorsque
-         * l'emplacement possède un historique.
-         */
+        if (logsRepository.existsByLocationId_Id(id)
+                || alertsRepository.existsByLocationId_Id(id)) {
+            throw new ResourceInUseException(
+                    "Impossible de supprimer cet emplacement : des logs ou des alertes y sont associés.");
+        }
 
         locationRepository.delete(location);
     }

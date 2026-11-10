@@ -4,6 +4,7 @@ import LogOutButton from "../ui/LogOutButton";
 import logo from "../../assets/images/logo.jpg";
 import authService from "../../service/authService";
 import toast from "react-hot-toast";
+import useLanguage from "../../context/useLanguage";
 
 const navigationItems = [
   { variant: "dashboard", label: "Tableau de bord", to: "/dashboard" },
@@ -14,17 +15,18 @@ const navigationItems = [
   { variant: "setting", label: "Paramètres", to: "/settings" },
 ];
 
-const SideBar = () => {
+const SideBar = ({ onNavigate }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const handleLogout = async () => {
     try {
       await authService.logout();
-      toast.success("Déconnexion réussie.");
+      toast.success(t("Déconnexion réussie."));
     } catch (error) {
       console.error("Erreur lors de la déconnexion :", error);
 
       toast.error(
-        error.response?.data?.message || "Erreur lors de la déconnexion.",
+        error.response?.data?.message || t("Erreur lors de la déconnexion."),
       );
     } finally {
       navigate("/signin", { replace: true });
@@ -32,10 +34,10 @@ const SideBar = () => {
   };
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen p-4 border-r shrink-0 border-text-muted bg-text-primary">
+    <aside className="flex flex-col w-64 h-full min-h-0 p-4 border-r shrink-0 border-text-muted bg-[#1A2B4C]">
       <nav
-        className="flex flex-col flex-1 gap-2"
-        aria-label="Navigation principale"
+        className="flex flex-col flex-1 gap-2 overflow-y-auto"
+        aria-label={t("Navigation principale")}
       >
         <div className="flex flex-row items-center gap-2 pb-4">
           <img src={logo} alt="logo" className="w-8 h-8 rounded-full" />
@@ -48,6 +50,7 @@ const SideBar = () => {
             key={item.to}
             to={item.to}
             className="rounded-lg"
+            onClick={onNavigate}
           >
             {({ isActive }) => (
               <IconButton variant={item.variant} active={isActive} />

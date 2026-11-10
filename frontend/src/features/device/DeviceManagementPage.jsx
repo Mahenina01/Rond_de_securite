@@ -8,10 +8,12 @@ import DeviceIcon from "../../assets/icons/device-out.svg?react";
 import devicesService from "../../service/devciesService";
 import toast from "react-hot-toast";
 import agentsService from "../../service/agentsService";
+import useLanguage from "../../context/useLanguage";
 
 const emptyForm = {
   deviceCode: "",
   nameAgent: "",
+  isActive: true,
 };
 
 const getErrorMessage = (error, fallback) =>
@@ -32,6 +34,7 @@ const getResponseList = (response) => {
 };
 
 export default function DeviceManagementPage() {
+  const { t } = useLanguage();
   const [devices, setDevices] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -58,45 +61,52 @@ export default function DeviceManagementPage() {
       const list = getResponseList(response);
 
       if (!list) {
-        throw new Error("La liste des agents reçue est invalide.");
+        throw new Error(t("La liste des agents reçue est invalide."));
       }
 
       setAgents(list);
     } catch (error) {
-      console.error("Erreur de chargement des agents :", error);
-      toast.error(getErrorMessage(error, "Impossible de charger les agents."));
+      console.error(t("Erreur de chargement des agents :"), error);
+      toast.error(getErrorMessage(error, t("Impossible de charger les agents.")));
     }
-  }, []);
+  }, [t]);
 
   // Charger les appareils depuis le backend
   const loadDevices = useCallback(async () => {
-    setLoading(true);
-
     try {
       const response = await devicesService.getAll();
       const list = getResponseList(response);
 
       if (!list) {
         throw new Error(
-          "Le serveur n'a pas renvoyé une liste valide d'appareils.",
+          t("Le serveur n'a pas renvoyé une liste valide d'appareils."),
         );
       }
 
       setDevices(list);
     } catch (error) {
-      console.error("Erreur de chargement des appareils :", error);
+      console.error(t("Erreur de chargement des appareils :"), error);
 
       toast.error(
-        getErrorMessage(error, "Impossible de charger les appareils."),
+        getErrorMessage(error, t("Impossible de charger les appareils.")),
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    loadDevices();
-    loadAgents();
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      loadDevices();
+      loadAgents();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [loadDevices, loadAgents]);
 
   // Réinitialiser le formulaire
@@ -144,6 +154,7 @@ export default function DeviceManagementPage() {
     setFormData({
       deviceCode: device.deviceCode ?? "",
       nameAgent: device.nameAgent ?? "",
+      isActive: device.isActive ?? true,
     });
 
     setFormError("");
@@ -161,7 +172,7 @@ export default function DeviceManagementPage() {
 
     if (!payload.deviceCode || !payload.nameAgent) {
       setFormError(
-        "Le code de l'appareil et le nom de l'agent sont obligatoires.",
+        t("Le code de l'appareil et le nom de l'agent sont obligatoires."),
       );
       return;
     }
@@ -174,40 +185,45 @@ export default function DeviceManagementPage() {
     );
 
     if (duplicate) {
-      setFormError("Ce code appareil existe déjà.");
+      setFormError(t("Ce code appareil existe déjà."));
       return;
     }
 
     setSubmitting(true);
     setFormError("");
-
-    // Conserver le statut existant en modification
-    /*const devicePayload = {
-      ...payload,
-      isActive: editingDevice ? editingDevice.isActive : true,
-    };*/
+    let updatingStatus = false;
 
     try {
       if (editingDevice) {
         await devicesService.update(editingDevice.id, payload);
-        toast.success("Appareil modifié avec succès.");
+
+        if (formData.isActive !== (editingDevice.isActive ?? true)) {
+          updatingStatus = true;
+          await devicesService.updateStatus(editingDevice.id, formData.isActive);
+          updatingStatus = false;
+        }
+
+        toast.success(t("Appareil modifié avec succès."));
       } else {
         await devicesService.create(payload);
-        toast.success("Appareil créé avec succès.");
+        toast.success(t("Appareil créé avec succès."));
       }
 
       setIsModalOpen(false);
       resetForm();
 
+      setLoading(true);
       await loadDevices();
     } catch (error) {
-      console.error("Erreur d'enregistrement de l'appareil :", error);
+      console.error(t("Erreur d'enregistrement de l'appareil :"), error);
 
       const message = getErrorMessage(
         error,
-        editingDevice
-          ? "Impossible de modifier cet appareil."
-          : "Impossible de créer cet appareil.",
+        updatingStatus
+          ? t("Impossible de modifier le statut de cet appareil.")
+          : editingDevice
+            ? t("Impossible de modifier cet appareil.")
+            : t("Impossible de créer cet appareil."),
       );
 
       setFormError(message);
@@ -244,15 +260,15 @@ export default function DeviceManagementPage() {
         previous.filter((device) => device.id !== selectedDevice.id),
       );
 
-      toast.success("Appareil supprimé avec succès.");
+      toast.success(t("Appareil supprimé avec succès."));
 
       setIsDeleteModalOpen(false);
       setSelectedDevice(null);
     } catch (error) {
-      console.error("Erreur de suppression de l'appareil :", error);
+      console.error(t("Erreur de suppression de l'appareil :"), error);
 
       toast.error(
-        getErrorMessage(error, "Impossible de supprimer cet appareil."),
+        getErrorMessage(error, t("Impossible de supprimer cet appareil.")),
       );
     } finally {
       setDeleting(false);
@@ -295,15 +311,15 @@ export default function DeviceManagementPage() {
   // Colonnes du tableau
   const deviceColumns = [
     {
-      header: "Code appareil",
+      header: t("Code appareil"),
       accessor: "deviceCode",
     },
     {
-      header: "Matricule agent",
+      header: t("Matricule agent"),
       accessor: "agentCode",
     },
     {
-      header: "Statut",
+      header: t("Statut"),
       render: (row) => (
         <span
           className={
@@ -312,12 +328,12 @@ export default function DeviceManagementPage() {
               : "text-sm font-medium text-danger"
           }
         >
-          {row.isActive ? "Actif" : "Inactif"}
+          {row.isActive ? t("Actif") : t("Inactif")}
         </span>
       ),
     },
     {
-      header: "Actions",
+      header: t("Actions"),
       align: "right",
       render: (row) => (
         <div className="flex items-center justify-end gap-3">
@@ -325,8 +341,8 @@ export default function DeviceManagementPage() {
             type="button"
             onClick={() => handleEdit(row)}
             className="text-gray-500 transition-colors hover:text-blue-600"
-            title="Modifier"
-            aria-label={`Modifier ${row.deviceCode}`}
+            title={t("Modifier")}
+            aria-label={`${t("Modifier")} ${row.deviceCode}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -348,8 +364,8 @@ export default function DeviceManagementPage() {
             type="button"
             onClick={() => openDeleteModal(row)}
             className="text-red-500 transition-colors hover:text-red-700"
-            title="Supprimer"
-            aria-label={`Supprimer ${row.deviceCode}`}
+            title={t("Supprimer")}
+            aria-label={`${t("Supprimer")} ${row.deviceCode}`}
           >
             <Delete className="w-4 h-4 text-danger" />
           </button>
@@ -363,7 +379,7 @@ export default function DeviceManagementPage() {
       {/* Titre et bouton d'ajout */}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <h2 className="text-xl font-bold text-gray-900">
-          Gestion des appareils
+          {t("Gestion des appareils")}
         </h2>
 
         <Button
@@ -373,7 +389,7 @@ export default function DeviceManagementPage() {
           className="gap-2 text-sm"
         >
           <span className="text-lg leading-none">+</span>
-          Nouvel appareil
+          {t("Nouvel appareil")}
         </Button>
       </div>
 
@@ -381,7 +397,7 @@ export default function DeviceManagementPage() {
       <div className="w-full sm:w-[320px]">
         <Input
           variant="search"
-          placeholder="Rechercher un appareil..."
+          placeholder={t("Rechercher un appareil...")}
           name="searchQuery"
           value={searchQuery}
           onChange={(valueOrEvent) => {
@@ -397,21 +413,21 @@ export default function DeviceManagementPage() {
 
       {/* Compteur */}
       <div className="text-sm font-semibold text-gray-800">
-        Résultats ({formattedCount})
+        {t("Résultats")} ({formattedCount})
       </div>
 
       {/* Tableau */}
       {loading ? (
         <p className="py-6 text-sm text-text-secondary">
-          Chargement des appareils...
+          {t("Chargement des appareils...")}
         </p>
       ) : filteredDevices.length > 0 ? (
         <DataTable columns={deviceColumns} data={filteredDevices} />
       ) : (
         <p className="py-8 text-sm text-center text-text-secondary">
           {searchQuery.trim()
-            ? "Aucun appareil ne correspond à votre recherche."
-            : "Aucun appareil enregistré."}
+            ? t("Aucun appareil ne correspond à votre recherche.")
+            : t("Aucun appareil enregistré.")}
         </p>
       )}
 
@@ -419,7 +435,9 @@ export default function DeviceManagementPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingDevice ? "Modifier un appareil" : "Ajout d'un appareil"}
+        title={
+          editingDevice ? t("Modifier un appareil") : t("Ajout d'un appareil")
+        }
         IconTitle={DeviceIcon}
         footer={
           <>
@@ -429,7 +447,7 @@ export default function DeviceManagementPage() {
               variant="outline"
               disabled={submitting}
             >
-              Annuler
+              {t("Annuler")}
             </Button>
 
             <Button
@@ -439,25 +457,26 @@ export default function DeviceManagementPage() {
               disabled={!isFormValid || submitting}
             >
               {submitting
-                ? "Enregistrement..."
+                ? t("Enregistrement...")
                 : editingDevice
-                  ? "Enregistrer"
-                  : "Ajouter"}
+                  ? t("Enregistrer")
+                  : t("Ajouter")}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <p className="font-sans text-sm text-text-secondary">
-            Enregistrez un appareil et associez-le à un agent responsable des
-            rondes de sécurité.
+            {t(
+              "Enregistrez un appareil et associez-le à un agent responsable des rondes de sécurité.",
+            )}
           </p>
 
           <Input
             variant="default"
-            label="Code de l'appareil"
+            label={t("Code de l'appareil")}
             name="deviceCode"
-            placeholder="Ex. : PN-001"
+            placeholder={t("Ex. : PN-001")}
             value={formData.deviceCode}
             onChange={handleChangeFor("deviceCode")}
             required
@@ -466,9 +485,9 @@ export default function DeviceManagementPage() {
           <div className="relative">
             <Input
               variant="default"
-              label="Nom de l'agent"
+              label={t("Nom de l'agent")}
               name="nameAgent"
-              placeholder="Rechercher par nom ou matricule..."
+              placeholder={t("Rechercher par nom ou matricule...")}
               value={formData.nameAgent}
               onChange={(valueOrEvent) => {
                 handleChangeFor("nameAgent")(valueOrEvent);
@@ -507,12 +526,51 @@ export default function DeviceManagementPage() {
                   ))
                 ) : (
                   <p className="px-4 py-3 text-sm text-gray-500">
-                    Aucun agent trouvé.
+                    {t("Aucun agent trouvé.")}
                   </p>
                 )}
               </div>
             )}
           </div>
+
+          {editingDevice && (
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  {t("Statut de l’appareil")}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {formData.isActive ? t("Actif") : t("Inactif")}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.isActive}
+                aria-label={
+                  formData.isActive
+                    ? t("Désactiver l’appareil")
+                    : t("Activer l’appareil")
+                }
+                disabled={submitting}
+                onClick={() =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    isActive: !previous.isActive,
+                  }))
+                }
+                className={`relative h-6 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 ${
+                  formData.isActive ? "bg-primary" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                    formData.isActive ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {formError && (
             <p className="text-sm text-danger" role="alert">
@@ -526,7 +584,7 @@ export default function DeviceManagementPage() {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}
-        title="Confirmer la suppression"
+        title={t("Confirmer la suppression")}
         IconTitle={DeviceIcon}
         footer={
           <>
@@ -536,24 +594,24 @@ export default function DeviceManagementPage() {
               variant="outline"
               disabled={deleting}
             >
-              Annuler
+              {t("Annuler")}
             </Button>
 
-            <Button
+            <button
               type="button"
               onClick={handleDelete}
-              variant="primary"
               disabled={deleting}
+              className="px-4 py-2 text-sm text-white rounded-lg bg-danger hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
+              {deleting ? t("Suppression...") : t("Supprimer")}
+            </button>
           </>
         }
       >
         <p className="py-4 text-sm text-text-secondary">
-          Êtes-vous sûr de vouloir supprimer l'appareil{" "}
-          <strong>{selectedDevice?.deviceCode ?? ""}</strong>? Cette action est
-          irréversible.
+          {t("Êtes-vous sûr de vouloir supprimer l'appareil")}{" "}
+          <strong>{selectedDevice?.deviceCode ?? ""}</strong>?{" "}
+          {t("Cette action est irréversible.")}
         </p>
       </Modal>
     </div>

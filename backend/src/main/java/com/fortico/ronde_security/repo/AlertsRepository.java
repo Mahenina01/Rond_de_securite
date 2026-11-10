@@ -24,6 +24,10 @@ public interface AlertsRepository
         List<Alerts> findByLocationId_Agent_IdOrderByReceivedAtDesc(
                         Long agentId);
 
+        void deleteByLocationId_Agent_Id(Long agentId);
+
+        boolean existsByLocationId_Id(Long locationId);
+
         List<Alerts> findByReceivedAtBetweenOrderByReceivedAtDesc(
                         Instant from,
                         Instant to);

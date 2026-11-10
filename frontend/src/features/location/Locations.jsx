@@ -10,11 +10,13 @@ import Modal from "../../components/ui/Modal";
 import locationsService from "../../service/locationsService";
 import toast from "react-hot-toast";
 import agentsService from "../../service/agentsService";
+import useLanguage from "../../context/useLanguage";
 
 const emptyForm = {
   checkpointCode: "",
   name: "",
   agentName: "",
+  isActive: true,
 };
 
 const getErrorMessage = (error, fallback) =>
@@ -35,6 +37,7 @@ const getResponseList = (response) => {
 };
 
 const Locations = () => {
+  const { t } = useLanguage();
   const [checkpoints, setCheckpoints] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -62,49 +65,56 @@ const Locations = () => {
 
       if (!list) {
         throw new Error(
-          "Le serveur n'a pas renvoyé une liste valide d'agents.",
+          t("Le serveur n'a pas renvoyé une liste valide d'agents."),
         );
       }
 
       setAgents(list);
     } catch (error) {
-      console.error("Erreur de chargement des agents :", error);
+      console.error(t("Erreur de chargement des agents :"), error);
 
       toast.error(
-        getErrorMessage(error, "Impossible de charger la liste des agents."),
+        getErrorMessage(error, t("Impossible de charger la liste des agents.")),
       );
     }
-  }, []);
+  }, [t]);
 
   // Charger les points de contrôle depuis le backend.
   const loadCheckpoints = useCallback(async () => {
-    setLoading(true);
-
     try {
       const response = await locationsService.getAll();
       const list = getResponseList(response);
 
       if (!list) {
         throw new Error(
-          "Le serveur n'a pas renvoyé une liste valide de points de contrôle.",
+          t("Le serveur n'a pas renvoyé une liste valide de points de contrôle."),
         );
       }
 
       setCheckpoints(list);
     } catch (error) {
-      console.error("Erreur de chargement des points de contrôle :", error);
+      console.error(t("Erreur de chargement des points de contrôle :"), error);
 
       toast.error(
-        getErrorMessage(error, "Impossible de charger les points de contrôle."),
+        getErrorMessage(error, t("Impossible de charger les points de contrôle.")),
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    loadCheckpoints();
-    loadAgents();
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      loadCheckpoints();
+      loadAgents();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [loadCheckpoints, loadAgents]);
 
   const filteredAgents = agents.filter((agent) => {
@@ -168,6 +178,7 @@ const Locations = () => {
       checkpointCode: checkpoint.checkpointCode ?? "",
       name: checkpoint.name ?? "",
       agentName: checkpoint.agent?.name ?? checkpoint.agentName ?? "",
+      isActive: checkpoint.isActive ?? true,
     });
 
     setFormError("");
@@ -184,7 +195,7 @@ const Locations = () => {
 
     if (!checkpointCode || !name || !agentName) {
       setFormError(
-        "Le code, le nom du point et le nom de l'agent sont obligatoires.",
+        t("Le code, le nom du point et le nom de l'agent sont obligatoires."),
       );
       return;
     }
@@ -197,7 +208,7 @@ const Locations = () => {
     );
 
     if (duplicateCode) {
-      setFormError("Ce code de point de contrôle existe déjà.");
+      setFormError(t("Ce code de point de contrôle existe déjà."));
       return;
     }
 
@@ -210,28 +221,42 @@ const Locations = () => {
 
     setSubmitting(true);
     setFormError("");
+    let updatingStatus = false;
 
     try {
       if (editingCheckpoint) {
         await locationsService.update(editingCheckpoint.id, payload);
-        toast.success("Point de contrôle modifié avec succès.");
+
+        if (formData.isActive !== (editingCheckpoint.isActive ?? true)) {
+          updatingStatus = true;
+          await locationsService.updateStatus(
+            editingCheckpoint.id,
+            formData.isActive,
+          );
+          updatingStatus = false;
+        }
+
+        toast.success(t("Point de contrôle modifié avec succès."));
       } else {
         await locationsService.create(payload);
-        toast.success("Point de contrôle créé avec succès.");
+        toast.success(t("Point de contrôle créé avec succès."));
       }
 
       setIsModalOpen(false);
       resetForm();
 
+      setLoading(true);
       await loadCheckpoints();
     } catch (error) {
-      console.error("Erreur d'enregistrement du point de contrôle :", error);
+      console.error(t("Erreur d'enregistrement du point de contrôle :"), error);
 
       const message = getErrorMessage(
         error,
-        editingCheckpoint
-          ? "Impossible de modifier ce point de contrôle."
-          : "Impossible de créer ce point de contrôle.",
+        updatingStatus
+          ? t("Impossible de modifier le statut de ce point de contrôle.")
+          : editingCheckpoint
+            ? t("Impossible de modifier ce point de contrôle.")
+            : t("Impossible de créer ce point de contrôle."),
       );
 
       setFormError(message);
@@ -270,15 +295,15 @@ const Locations = () => {
         ),
       );
 
-      toast.success("Point de contrôle supprimé avec succès.");
+      toast.success(t("Point de contrôle supprimé avec succès."));
 
       setIsDeleteModalOpen(false);
       setSelectedCheckpoint(null);
     } catch (error) {
-      console.error("Erreur de suppression du point de contrôle :", error);
+      console.error(t("Erreur de suppression du point de contrôle :"), error);
 
       toast.error(
-        getErrorMessage(error, "Impossible de supprimer ce point de contrôle."),
+        getErrorMessage(error, t("Impossible de supprimer ce point de contrôle.")),
       );
     } finally {
       setDeleting(false);
@@ -312,19 +337,19 @@ const Locations = () => {
   // Colonnes du tableau.
   const checkpointColumns = [
     {
-      header: "Code du point",
+      header: t("Code du point"),
       accessor: "checkpointCode",
     },
     {
-      header: "Nom du point de contrôle",
+      header: t("Nom du point de contrôle"),
       accessor: "name",
     },
     {
-      header: "Agent responsable",
+      header: t("Agent responsable"),
       render: (row) => (
         <div className="flex flex-col">
           <span className="text-sm font-medium text-text-primary">
-            {row.agent?.name ?? row.agentName ?? "Non attribué"}
+            {row.agent?.name ?? row.agentName ?? t("Non attribué")}
           </span>
           {row.agent?.agentCode && (
             <span className="text-xs text-text-secondary">
@@ -335,7 +360,7 @@ const Locations = () => {
       ),
     },
     {
-      header: "Statut",
+      header: t("Statut"),
       render: (row) => (
         <span
           className={
@@ -344,12 +369,12 @@ const Locations = () => {
               : "text-sm font-medium text-danger"
           }
         >
-          {row.isActive ? "Actif" : "Inactif"}
+          {row.isActive ? t("Actif") : t("Inactif")}
         </span>
       ),
     },
     {
-      header: "Actions",
+      header: t("Actions"),
       align: "right",
       render: (row) => (
         <div className="flex items-center justify-end gap-3">
@@ -357,8 +382,8 @@ const Locations = () => {
             type="button"
             onClick={() => handleEdit(row)}
             className="text-gray-500 transition-colors hover:text-blue-600"
-            title="Modifier"
-            aria-label={`Modifier ${row.name}`}
+            title={t("Modifier")}
+            aria-label={`${t("Modifier")} ${row.name}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -380,8 +405,8 @@ const Locations = () => {
             type="button"
             onClick={() => openDeleteModal(row)}
             className="text-red-500 transition-colors hover:text-red-700"
-            title="Supprimer"
-            aria-label={`Supprimer ${row.name}`}
+            title={t("Supprimer")}
+            aria-label={`${t("Supprimer")} ${row.name}`}
           >
             <Delete className="w-4 h-4 text-danger" />
           </button>
@@ -394,13 +419,13 @@ const Locations = () => {
     <div className="flex flex-col gap-6 p-4 rounded-lg bg-surface">
       <div className="flex flex-col items-start justify-between w-full gap-4 sm:flex-row sm:items-center">
         <h1 className="font-sans text-xl text-text-primary">
-          Gestion des points de contrôle
+          {t("Gestion des points de contrôle")}
         </h1>
 
         <IconButton
           isButton={true}
           iconSVG={AddIcon}
-          text="Nouveau point de contrôle"
+          text={t("Nouveau point de contrôle")}
           onClick={handleOpenCreate}
         />
       </div>
@@ -409,7 +434,7 @@ const Locations = () => {
       <div className="w-full sm:w-[320px]">
         <Input
           variant="search"
-          placeholder="Rechercher un point de contrôle..."
+          placeholder={t("Rechercher un point de contrôle...")}
           name="searchQuery"
           value={searchQuery}
           onChange={(valueOrEvent) => {
@@ -424,21 +449,21 @@ const Locations = () => {
       </div>
 
       <div className="text-sm font-semibold text-gray-800">
-        Résultats ({formattedCount})
+        {t("Résultats")} ({formattedCount})
       </div>
 
       {/* Tableau */}
       {loading ? (
         <p className="py-6 text-sm text-text-secondary">
-          Chargement des points de contrôle...
+          {t("Chargement des points de contrôle...")}
         </p>
       ) : filteredCheckpoints.length > 0 ? (
         <DataTable columns={checkpointColumns} data={filteredCheckpoints} />
       ) : (
         <p className="py-8 text-sm text-center text-text-secondary">
           {searchQuery.trim()
-            ? "Aucun point de contrôle ne correspond à votre recherche."
-            : "Aucun point de contrôle enregistré."}
+            ? t("Aucun point de contrôle ne correspond à votre recherche.")
+            : t("Aucun point de contrôle enregistré.")}
         </p>
       )}
 
@@ -448,8 +473,8 @@ const Locations = () => {
         onClose={handleCloseModal}
         title={
           editingCheckpoint
-            ? "Modifier un point de contrôle"
-            : "Création d'un point de contrôle"
+            ? t("Modifier un point de contrôle")
+            : t("Création d'un point de contrôle")
         }
         IconTitle={SignPost}
         footer={
@@ -460,7 +485,7 @@ const Locations = () => {
               variant="outline"
               disabled={submitting}
             >
-              Annuler
+              {t("Annuler")}
             </Button>
 
             <Button
@@ -470,24 +495,25 @@ const Locations = () => {
               disabled={!isFormValid || submitting}
             >
               {submitting
-                ? "Enregistrement..."
+                ? t("Enregistrement...")
                 : editingCheckpoint
-                  ? "Enregistrer"
-                  : "Créer"}
+                  ? t("Enregistrer")
+                  : t("Créer")}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <p className="font-sans text-sm text-text-secondary">
-            Enregistrez un point de contrôle et associez-le à un agent
-            responsable des rondes de sécurité.
+            {t(
+              "Enregistrez un point de contrôle et associez-le à un agent responsable des rondes de sécurité.",
+            )}
           </p>
 
           <Input
             variant="default"
-            label="Code du point de contrôle"
-            placeholder="Ex. : CP-011"
+            label={t("Code du point de contrôle")}
+            placeholder={t("Ex. : CP-011")}
             name="checkpointCode"
             value={formData.checkpointCode}
             onChange={handleChangeFor("checkpointCode")}
@@ -496,8 +522,8 @@ const Locations = () => {
 
           <Input
             variant="default"
-            label="Nom du point de contrôle"
-            placeholder="Ex. : Parking"
+            label={t("Nom du point de contrôle")}
+            placeholder={t("Ex. : Parking")}
             name="name"
             value={formData.name}
             onChange={handleChangeFor("name")}
@@ -507,8 +533,8 @@ const Locations = () => {
           <div className="relative">
             <Input
               variant="default"
-              label="Nom de l'agent responsable"
-              placeholder="Rechercher par nom ou code agent..."
+              label={t("Nom de l'agent responsable")}
+              placeholder={t("Rechercher par nom ou code agent...")}
               name="agentName"
               value={formData.agentName}
               onChange={(valueOrEvent) => {
@@ -542,18 +568,57 @@ const Locations = () => {
                       </span>
 
                       <span className="text-xs text-text-secondary">
-                        Code agent : {agent.agentCode}
+                        {t("Code agent : ")}{agent.agentCode}
                       </span>
                     </button>
                   ))
                 ) : (
                   <p className="px-3 py-3 text-sm text-text-secondary">
-                    Aucun agent correspondant.
+                    {t("Aucun agent correspondant.")}
                   </p>
                 )}
               </div>
             )}
           </div>
+
+          {editingCheckpoint && (
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  {t("Statut du point de contrôle")}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {formData.isActive ? t("Actif") : t("Inactif")}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.isActive}
+                aria-label={
+                  formData.isActive
+                    ? t("Désactiver le point de contrôle")
+                    : t("Activer le point de contrôle")
+                }
+                disabled={submitting}
+                onClick={() =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    isActive: !previous.isActive,
+                  }))
+                }
+                className={`relative h-6 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 ${
+                  formData.isActive ? "bg-primary" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                    formData.isActive ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {formError && (
             <p className="text-sm text-danger" role="alert">
@@ -567,7 +632,7 @@ const Locations = () => {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}
-        title="Confirmer la suppression"
+        title={t("Confirmer la suppression")}
         IconTitle={SignPost}
         footer={
           <>
@@ -577,25 +642,25 @@ const Locations = () => {
               variant="outline"
               disabled={deleting}
             >
-              Annuler
+              {t("Annuler")}
             </Button>
 
-            <Button
+            <button
               type="button"
               onClick={handleDelete}
-              variant="primary"
               disabled={deleting}
+              className="px-4 py-2 text-sm text-white rounded-lg bg-danger hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {deleting ? "Suppression..." : "Supprimer"}
-            </Button>
+              {deleting ? t("Suppression...") : t("Supprimer")}
+            </button>
           </>
         }
       >
         <p className="py-4 text-sm text-text-secondary">
-          Êtes-vous sûr de vouloir supprimer le point de contrôle{" "}
+          {t("Êtes-vous sûr de vouloir supprimer le point de contrôle")}{" "}
           <strong>{selectedCheckpoint?.name ?? ""}</strong> (
-          {selectedCheckpoint?.checkpointCode ?? ""}) ? Cette action est
-          irréversible.
+          {selectedCheckpoint?.checkpointCode ?? ""})?{" "}
+          {t("Cette action est irréversible.")}
         </p>
       </Modal>
     </div>

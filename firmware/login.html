@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#00A88F">
+<title>Pointeuse — Connexion</title>
+<style>
+:root{
+  --primary:#00A88F;--primary-hover:#008F7A;--primary-light:#007F70;
+  --bg:#EEEEEE;--surface:#FFFFFF;--input:#F7F7F7;
+  --text:#1A2B4C;--text-2:#585858;--muted:#C3C3C3;--border:#C3C3C3;
+  --danger:#DC2626;--danger-light:#FEE2E2;--warning:#D97706;--warning-light:#FEF3C7;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:100%;max-width:380px;background:var(--surface);border-radius:20px;
+  padding:32px 28px;box-shadow:0 1px 2px rgba(26,43,76,.06),0 12px 32px rgba(26,43,76,.10)}
+.logo{width:56px;height:56px;border-radius:16px;background:var(--primary);display:grid;place-items:center;margin:0 auto 16px}
+.logo svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:20px;text-align:center;margin:0 0 4px}
+.sub{text-align:center;color:var(--text-2);font-size:14px;margin:0 0 24px}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.field{position:relative}
+input{width:100%;height:48px;padding:0 48px 0 14px;border:1.5px solid transparent;border-radius:12px;
+  background:var(--input);font-size:16px;color:var(--text);outline:none;transition:border-color .15s,background .15s}
+input:focus{border-color:var(--primary);background:#fff}
+input::placeholder{color:var(--muted)}
+.eye{position:absolute;right:4px;top:4px;width:40px;height:40px;border:0;background:transparent;border-radius:10px;cursor:pointer;display:grid;place-items:center}
+.eye:hover{background:#EEEEEE}
+.eye svg{width:20px;height:20px;stroke:var(--text-2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.msg{display:none;margin:0 0 16px;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.4}
+.msg.show{display:block}
+.msg.err{background:var(--danger-light);color:var(--danger)}
+.msg.warn{background:var(--warning-light);color:var(--warning)}
+button.go{width:100%;height:48px;margin-top:18px;border:0;border-radius:12px;background:var(--primary);color:#fff;
+  font-size:16px;font-weight:600;cursor:pointer;transition:background .15s}
+button.go:hover{background:var(--primary-hover)}
+button.go:disabled{background:var(--muted);cursor:not-allowed}
+.foot{margin:20px 0 0;text-align:center;font-size:12px;color:var(--text-2)}
+:focus-visible{outline:3px solid rgba(0,168,143,.35);outline-offset:2px}
+</style>
+</head>
+<body>
+<form class="card" method="POST" action="/login" id="f" autocomplete="on">
+  <div class="logo" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.5-1.5 1.7-2 3-2s2.5.5 3 2"/><path d="M15 10h3M15 13h3"/></svg>
+  </div>
+  <h1>Pointeuse</h1>
+  <p class="sub">Mode secours — connexion requise</p>
+
+  <div class="msg" id="msg" role="alert"></div>
+
+  <label for="pw">Mot de passe</label>
+  <div class="field">
+    <input id="pw" name="password" type="password" placeholder="••••••••" autocomplete="current-password" autofocus required maxlength="64">
+    <button type="button" class="eye" id="eye" aria-label="Afficher le mot de passe">
+      <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+  </div>
+
+  <button class="go" type="submit" id="go">Se connecter</button>
+  <p class="foot">Le point d'accès se coupe automatiquement après 5 minutes d'inactivité.</p>
+</form>
+
+<script>
+(function () {
+  var msg = document.getElementById('msg');
+  var code = new URLSearchParams(location.search).get('e');
+  var texts = {
+    '1': ['err', 'Mot de passe incorrect.'],
+    '2': ['warn', 'Trop de tentatives. Réessayez dans 30 secondes.'],
+    '3': ['warn', 'Session expirée. Reconnectez-vous.']
+  };
+  if (texts[code]) {
+    msg.className = 'msg show ' + texts[code][0];
+    msg.textContent = texts[code][1];
+  }
+  var pw = document.getElementById('pw');
+  document.getElementById('eye').addEventListener('click', function () {
+    var show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    this.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  });
+  document.getElementById('f').addEventListener('submit', function () {
+    var b = document.getElementById('go');
+    b.disabled = true;
+    b.textContent = 'Connexion…';
+  });
+  // Retire le code d'erreur de l'adresse (évite de le revoir au rechargement).
+  if (code) history.replaceState(null, '', location.pathname);
+})();
+</script>
+</body>
+</html>

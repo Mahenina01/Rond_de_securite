@@ -24,4 +24,6 @@ public interface AlertsService {
   AlertsResponse resolveAlert(Long id);
 
   AlertsResponse createAlert(AlertsRequest request);
+
+  void deleteAlert(Long id);
 }

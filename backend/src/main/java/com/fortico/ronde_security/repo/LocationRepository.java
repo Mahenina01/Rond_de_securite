@@ -22,6 +22,8 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
 
     List<Location> findByAgent_Id(Long agentId);
 
+    void deleteByAgent_Id(Long agentId);
+
     List<Location> findByAgentIsNull();
 
 }

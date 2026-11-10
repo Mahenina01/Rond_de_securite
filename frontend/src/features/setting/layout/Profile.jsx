@@ -5,6 +5,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import AvatarUpload from "./AvatarUpload";
 import authService from "../../../service/authService";
+import useLanguage from "../../../context/useLanguage";
 
 const emptyProfile = {
   photo: "",
@@ -19,6 +20,7 @@ const initialPassword = {
 };
 
 const Profile = () => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState(emptyProfile);
   const [savedProfile, setSavedProfile] = useState(emptyProfile);
   const [passwordData, setPasswordData] = useState(initialPassword);
@@ -29,8 +31,6 @@ const Profile = () => {
 
   // Charger le profil de l'utilisateur connecté
   const loadProfile = useCallback(async () => {
-    setLoading(true);
-
     try {
       const response = await authService.getProfile();
       const profile = response?.data ?? response;
@@ -46,15 +46,23 @@ const Profile = () => {
       setSavedProfile(normalizedProfile);
     } catch (error) {
       toast.error(
-        error.response?.data?.message ?? "Impossible de charger le profil.",
+        error.response?.data?.message ?? t("Impossible de charger le profil."),
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    loadProfile();
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) return loadProfile();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [loadProfile]);
 
   // Gérer les champs du profil
@@ -115,11 +123,11 @@ const Profile = () => {
       setFormData(normalizedProfile);
       setSavedProfile(normalizedProfile);
 
-      toast.success("Profil mis à jour avec succès.");
+      toast.success(t("Profil mis à jour avec succès."));
     } catch (error) {
       toast.error(
         error.response?.data?.message ??
-          "Erreur lors de la mise à jour du profil.",
+          t("Erreur lors de la mise à jour du profil."),
       );
     } finally {
       setSavingProfile(false);
@@ -133,13 +141,13 @@ const Profile = () => {
     if (savingPassword) return;
 
     if (!passwordData.currentPassword || !passwordData.newPassword) {
-      toast.error("Veuillez renseigner les deux mots de passe.");
+      toast.error(t("Veuillez renseigner les deux mots de passe."));
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
       toast.error(
-        "Le nouveau mot de passe doit contenir au moins 8 caractères.",
+        t("Le nouveau mot de passe doit contenir au moins 8 caractères."),
       );
       return;
     }
@@ -153,11 +161,11 @@ const Profile = () => {
       });
 
       setPasswordData(initialPassword);
-      toast.success("Mot de passe modifié avec succès.");
+      toast.success(t("Mot de passe modifié avec succès."));
     } catch (error) {
       toast.error(
         error.response?.data?.message ??
-          "Impossible de modifier le mot de passe.",
+          t("Impossible de modifier le mot de passe."),
       );
     } finally {
       setSavingPassword(false);
@@ -167,19 +175,19 @@ const Profile = () => {
   if (loading) {
     return (
       <section className="flex items-center justify-center flex-1 p-6 rounded-lg bg-surface">
-        <p className="text-text-secondary">Chargement du profil...</p>
+        <p className="text-text-secondary">{t("Chargement du profil...")}</p>
       </section>
     );
   }
 
   return (
-    <section className="flex flex-col flex-1 gap-6 p-4 rounded-lg bg-surface">
+    <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-lg bg-surface p-4 sm:p-6">
       <div>
         <h1 className="font-sans text-xl font-semibold text-text-primary">
-          Profil
+          {t("Profil")}
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Gérez vos informations personnelles et votre sécurité.
+          {t("Gérez vos informations personnelles et votre sécurité.")}
         </p>
       </div>
 
@@ -194,7 +202,7 @@ const Profile = () => {
         </div>
 
         <Input
-          label="Nom"
+          label={t("Nom")}
           name="name"
           value={formData.name}
           onChange={handleChangeFor("name")}
@@ -202,7 +210,7 @@ const Profile = () => {
         />
 
         <Input
-          label="Nom d'utilisateur"
+          label={t("Nom d'utilisateur")}
           name="username"
           value={formData.username}
           onChange={handleChangeFor("username")}
@@ -210,7 +218,7 @@ const Profile = () => {
         />
 
         <Input
-          label="E-mail"
+          label={t("E-mail")}
           name="email"
           inputType="email"
           value={formData.email}
@@ -222,12 +230,16 @@ const Profile = () => {
           <Button
             type="submit"
             label={
-              savingProfile ? "Enregistrement..." : "Enregistrer le profil"
+              savingProfile
+                ? t("Enregistrement...")
+                : t("Enregistrer le profil")
             }
             variant="primary"
             disabled={!hasProfileChanges || savingProfile}
           >
-            {savingProfile ? "Enregistrement..." : "Enregistrer le profil"}
+            {savingProfile
+              ? t("Enregistrement...")
+              : t("Enregistrer le profil")}
           </Button>
         </div>
       </form>
@@ -237,14 +249,16 @@ const Profile = () => {
       {/* Changement du mot de passe */}
       <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Sécurité</h2>
+          <h2 className="text-lg font-semibold text-text-primary">
+            {t("Sécurité")}
+          </h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Choisissez un nouveau mot de passe pour votre compte.
+            {t("Choisissez un nouveau mot de passe pour votre compte.")}
           </p>
         </div>
 
         <Input
-          label="Mot de passe actuel"
+          label={t("Mot de passe actuel")}
           name="currentPassword"
           value={passwordData.currentPassword}
           onChange={handlePasswordChange("currentPassword")}
@@ -253,11 +267,11 @@ const Profile = () => {
         />
 
         <Input
-          label="Nouveau mot de passe"
+          label={t("Nouveau mot de passe")}
           name="newPassword"
           value={passwordData.newPassword}
           onChange={handlePasswordChange("newPassword")}
-          placeholder="8 caractères minimum"
+          placeholder={t("8 caractères minimum")}
           variant="password"
           required
         />
@@ -266,12 +280,16 @@ const Profile = () => {
           <Button
             type="submit"
             label={
-              savingPassword ? "Modification..." : "Changer le mot de passe"
+              savingPassword
+                ? t("Modification...")
+                : t("Changer le mot de passe")
             }
             variant="primary"
             disabled={savingPassword}
           >
-            {savingPassword ? "Modification..." : "Changer le mot de passe"}
+            {savingPassword
+              ? t("Modification...")
+              : t("Changer le mot de passe")}
           </Button>
         </div>
       </form>

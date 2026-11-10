@@ -22,4 +22,10 @@ public interface DevicesRepository extends JpaRepository<Devices, Long> {
   // Rechercher tous les dispositifs associés à un agent spécifique
   List<Devices> findByAgent_AgentCode(String agentCode);
 
+  List<Devices> findByAgent_Id(Long agentId);
+
+  long countByIsActiveTrue();
+
+  void deleteByAgent_Id(Long agentId);
+
 }

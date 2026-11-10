@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       // Palette de couleurs
@@ -18,17 +19,17 @@ export default {
           hover: "#475569",
         },
 
-        background: "#EEEEEE",
-        surface: "#FFFFFF",
-        input: "#F7F7F7",
+        background: "rgb(var(--color-background) / <alpha-value>)",
+        surface: "rgb(var(--color-surface) / <alpha-value>)",
+        input: "rgb(var(--color-input) / <alpha-value>)",
 
         text: {
-          primary: "#1A2B4C",
-          secondary: "#585858",
-          muted: "#C3C3C3",
+          primary: "rgb(var(--color-text-primary) / <alpha-value>)",
+          secondary: "rgb(var(--color-text-secondary) / <alpha-value>)",
+          muted: "rgb(var(--color-text-muted) / <alpha-value>)",
         },
 
-        border: "#C3C3C3",
+        border: "rgb(var(--color-border) / <alpha-value>)",
 
         success: {
           DEFAULT: "#16A34A",

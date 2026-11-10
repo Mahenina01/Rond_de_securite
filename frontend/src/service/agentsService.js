@@ -22,10 +22,11 @@ const agentsService = {
     return response.data;
   },
 
-  updateStatus: async (id, statusData) => {
+  updateStatus: async (id, isActive) => {
     const response = await api.patch(
       endpoints.agents.updateStatus(id),
-      statusData,
+      null,
+      { params: { active: isActive } },
     );
     return response.data;
   },

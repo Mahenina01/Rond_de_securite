@@ -49,6 +49,8 @@ public class SecurityConfig {
             .requestMatchers(
                 "/api/v1/users/login",
                 "/api/v1/users/create",
+                "/ws-alerts",
+                "/ws-alerts/**",
                 "/actuator/health",
                 "/error",
                 "/swagger-ui.html",

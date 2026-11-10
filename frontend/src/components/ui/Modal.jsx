@@ -1,4 +1,5 @@
 import UserIcon from "../../assets/icons/user-round-plus.svg?react";
+import useLanguage from "../../context/useLanguage";
 
 const Modal = ({
   isOpen,
@@ -8,6 +9,8 @@ const Modal = ({
   footer,
   IconTitle = { UserIcon },
 }) => {
+  const { t } = useLanguage();
+
   if (!isOpen) return null;
 
   return (
@@ -38,7 +41,7 @@ const Modal = ({
             type="button"
             onClick={onClose}
             className="p-2 text-gray-500 rounded-md hover:bg-gray-100"
-            aria-label="Fermer la fenêtre"
+            aria-label={t("Fermer la fenêtre")}
           >
             ✕
           </button>

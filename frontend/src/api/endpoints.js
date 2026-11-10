@@ -22,6 +22,19 @@ const endpoints = {
     delete: (id) => `/logs/${id}`,
   },
 
+  alerts: {
+    list: "/alerts",
+    detail: (id) => `/alerts/${id}`,
+    acknowledge: (id) => `/alerts/${id}/acknowledge`,
+    resolve: (id) => `/alerts/${id}/resolve`,
+    delete: (id) => `/alerts/${id}`,
+  },
+
+  dashboard: {
+    stats: "/dashboard/stats",
+    weeklyPassages: "/dashboard/weekly-passages",
+  },
+
   notifications: {
     list: "/notifications",
     detail: (id) => `/notifications/${id}`,
@@ -35,6 +48,7 @@ const endpoints = {
     agentId: (agentId) => `/locations/by-agent/${agentId}`,
     create: "/locations",
     update: (id) => `/locations/${id}`,
+    updateStatus: (id) => `/locations/${id}/status`,
     delete: (id) => `/locations/${id}`,
   },
 
@@ -43,6 +57,7 @@ const endpoints = {
     create: "/devices",
     detail: (id) => `/devices/${id}`,
     update: (id) => `/devices/update/${id}`,
+    updateStatus: (id) => `/devices/update/status/${id}`,
     delete: (id) => `/devices/${id}`,
   },
 };

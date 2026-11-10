@@ -4,3 +4,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-background: 238 238 238;
+  --color-surface: 255 255 255;
+  --color-input: 247 247 247;
+  --color-text-primary: 26 43 76;
+  --color-text-secondary: 88 88 88;
+  --color-text-muted: 195 195 195;
+  --color-border: 195 195 195;
+  --color-gray-50: 249 250 251;
+  --color-gray-100: 243 244 246;
+  --color-gray-200: 229 231 235;
+  --color-gray-300: 209 213 219;
+  --color-gray-500: 107 114 128;
+  --color-gray-600: 75 85 99;
+  --color-gray-700: 55 65 81;
+  --color-gray-800: 31 41 55;
+  --color-gray-900: 17 24 39;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --color-background: 15 23 42;
+  --color-surface: 30 41 59;
+  --color-input: 51 65 85;
+  --color-text-primary: 241 245 249;
+  --color-text-secondary: 203 213 225;
+  --color-text-muted: 100 116 139;
+  --color-border: 71 85 105;
+  --color-gray-50: 30 41 59;
+  --color-gray-100: 51 65 85;
+  --color-gray-200: 71 85 105;
+  --color-gray-300: 100 116 139;
+  --color-gray-500: 148 163 184;
+  --color-gray-600: 203 213 225;
+  --color-gray-700: 226 232 240;
+  --color-gray-800: 241 245 249;
+  --color-gray-900: 248 250 252;
+}
+
+body {
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+}
+
+@layer utilities {
+  .dark .bg-white {
+    background-color: rgb(var(--color-surface));
+  }
+
+  .dark .bg-gray-50 {
+    background-color: rgb(var(--color-gray-50));
+  }
+
+  .dark .bg-gray-100 {
+    background-color: rgb(var(--color-gray-100));
+  }
+
+  .dark .bg-gray-200 {
+    background-color: rgb(var(--color-gray-200));
+  }
+
+  .dark .bg-gray-50\/50 {
+    background-color: rgb(var(--color-gray-50) / 0.5);
+  }
+
+  .dark .text-gray-500 {
+    color: rgb(var(--color-gray-500));
+  }
+
+  .dark .text-gray-600 {
+    color: rgb(var(--color-gray-600));
+  }
+
+  .dark .text-gray-700 {
+    color: rgb(var(--color-gray-700));
+  }
+
+  .dark .text-gray-800 {
+    color: rgb(var(--color-gray-800));
+  }
+
+  .dark .text-gray-900 {
+    color: rgb(var(--color-gray-900));
+  }
+
+  .dark .border-gray-100 {
+    border-color: rgb(var(--color-gray-100));
+  }
+
+  .dark .border-gray-200 {
+    border-color: rgb(var(--color-gray-200));
+  }
+
+  .dark .border-gray-300 {
+    border-color: rgb(var(--color-gray-300));
+  }
+}

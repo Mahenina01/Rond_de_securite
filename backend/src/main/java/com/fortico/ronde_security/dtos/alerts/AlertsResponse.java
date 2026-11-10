@@ -9,5 +9,18 @@ public record AlertsResponse(
     String message,
     Long locationId,
     AlertStatus status,
-    Instant receivedAt) {
+    Instant receivedAt,
+    Instant timestamp,
+    LocationDetails location,
+    AgentDetails agent) {
+
+  public record LocationDetails(String name) {
+  }
+
+  public record AgentDetails(
+      Long id,
+      String agent_code,
+      String name,
+      String phone) {
+  }
 }

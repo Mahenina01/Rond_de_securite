@@ -3,8 +3,10 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import VerifyEmailIcon from "../../assets/icons/message-sent.svg?react";
 import { useNavigate } from "react-router";
+import useLanguage from "../../context/useLanguage";
 
 export default function VerifyCodePage() {
+  const { t } = useLanguage();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -21,7 +23,7 @@ export default function VerifyCodePage() {
   };
   const handleResend = () => {
     console.log("Demande de renvoi du code de vérification...");
-    alert("Un nouveau code a été envoyé.");
+    alert(t("Un nouveau code a été envoyé."));
   };
   return (
     <main className="flex items-center justify-center min-h-screen p-4 bg-background">
@@ -32,12 +34,12 @@ export default function VerifyCodePage() {
 
         <div className="flex flex-col gap-2 text-center">
           <h1 className="text-xl font-black tracking-tight text-text-primary">
-            VÉRIFIEZ VOTRE ADRESSE E-MAIL
+            {t("VÉRIFIEZ VOTRE ADRESSE E-MAIL")}
           </h1>
           <p className="text-sm leading-relaxed text-text-secondary">
-            Nous avons envoyé un code de vérification à votre adresse e-mail.
-            Saisissez le code reçu pour confirmer votre identité et continuer la
-            réinitialisation de votre mot de passe.
+            {t(
+              "Nous avons envoyé un code de vérification à votre adresse e-mail. Saisissez le code reçu pour confirmer votre identité et continuer la réinitialisation de votre mot de passe.",
+            )}
           </p>
         </div>
 
@@ -46,9 +48,9 @@ export default function VerifyCodePage() {
           {/* 3. Champ de saisie du code avec ton composant <Input /> */}
           <Input
             variant="default"
-            label="Code de vérification"
+            label={t("Code de vérification")}
             name="code"
-            placeholder="code de vérification"
+            placeholder={t("code de vérification")}
             value={code}
             onChange={(e) => setCode(e.target.value)}
             required={true}
@@ -56,13 +58,13 @@ export default function VerifyCodePage() {
 
           {/* Ligne : "Vous n'avez pas reçu le code ? Renvoyer" */}
           <div className="text-sm text-text-secondary flex items-center gap-1.5 -mt-2">
-            <span>Vous n'avez pas reçu le code ?</span>
+            <span>{t("Vous n'avez pas reçu le code ?")}</span>
             <button
               type="button"
               onClick={handleResend}
               className="font-semibold text-primary hover:underline focus:outline-none"
             >
-              Renvoyer
+              {t("Renvoyer")}
             </button>
           </div>
 
@@ -74,7 +76,7 @@ export default function VerifyCodePage() {
               className="justify-center"
               onClick={() => console.log("Retour en arrière")}
             >
-              Retour
+              {t("Retour")}
             </Button>
             <Button
               type="submit"
@@ -83,7 +85,9 @@ export default function VerifyCodePage() {
               disabled={!code || isSubmitting}
               className="justify-center"
             >
-              {isSubmitting ? "Vérification..." : "Vérifier le code"}
+              {isSubmitting
+                ? t("Vérification...")
+                : t("Vérifier le code")}
             </Button>
           </div>
         </form>

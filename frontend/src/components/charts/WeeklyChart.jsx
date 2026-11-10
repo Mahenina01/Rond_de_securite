@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -7,20 +8,61 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-
-const data = [
-  { day: "Lun", value: 30 },
-  { day: "Mar", value: 74 },
-  { day: "Mer", value: 67 },
-  { day: "Jeu", value: 95 },
-  { day: "Ven", value: 57 },
-  { day: "Sam", value: 84 },
-  { day: "Aujourd'hui", value: 92 },
-];
+import weeklyPassagesService from "../../service/weeklyPassagesService";
+import { connectWeeklyPassagesWebSocket } from "../../service/weeklyPassagesWebSocket";
+import tokenService from "../../service/tokenService";
+import useLanguage from "../../context/useLanguage";
 
 export default function WeeklyChart() {
+  const { t } = useLanguage();
+  const [data, setData] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let receivedRealtimeData = false;
+
+    const disconnect = connectWeeklyPassagesWebSocket({
+      onWeeklyPassagesReceived: (passages) => {
+        if (active && Array.isArray(passages)) {
+          receivedRealtimeData = true;
+          setData(passages);
+          setError("");
+        }
+      },
+      onAuthError: () => {
+        tokenService.removeToken();
+        window.location.replace("/signin");
+      },
+      onError: (webSocketError) => {
+        console.error("Erreur WebSocket des passages hebdomadaires :", webSocketError);
+      },
+    });
+
+    weeklyPassagesService
+      .getAll()
+      .then((passages) => {
+        if (active && !receivedRealtimeData) {
+          setData(passages);
+          setError("");
+        }
+      })
+      .catch((requestError) => {
+        console.error("Impossible de charger les passages hebdomadaires :", requestError);
+        if (active && !receivedRealtimeData) {
+          setError("Impossible de charger les passages confirmés.");
+        }
+      });
+
+    return () => {
+      active = false;
+      disconnect();
+    };
+  }, []);
+
   return (
     <div className="w-full h-64">
+      {error && <p className="mb-2 text-sm text-red-600">{t(error)}</p>}
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
@@ -42,8 +84,7 @@ export default function WeeklyChart() {
           />
 
           <YAxis
-            domain={[0, 100]}
-            ticks={[0, 20, 40, 60, 80, 100]}
+            domain={[0, "auto"]}
             axisLine={false}
             tickLine={false}
             tick={{
@@ -54,7 +95,7 @@ export default function WeeklyChart() {
 
           <Tooltip
             cursor={{ fill: "#F3E8FF", opacity: 0.4 }}
-            formatter={(value) => [`${value}`, "Valeur"]}
+            formatter={(value) => [`${value}`, t("Valeur")]}
           />
 
           <Bar

@@ -22,6 +22,13 @@ const devicesService = {
     return response.data;
   },
 
+  updateStatus: async (id, isActive) => {
+    const response = await api.patch(endpoints.devices.updateStatus(id), null, {
+      params: { status: isActive },
+    });
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await api.delete(endpoints.devices.delete(id));
     return response.data;

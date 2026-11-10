@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { formatPhone, formatTime } from "../../utils/formatters";
 import alerts from "../../constants/alert";
+import useLanguage from "../../context/useLanguage";
 
 const AlertCard = ({ alertData }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useLanguage();
 
   const agent = alertData?.agent;
   const location = alertData?.location;
@@ -27,13 +29,13 @@ const AlertCard = ({ alertData }) => {
       style={{ width: "100%", maxWidth: "400px" }}
       className={`cursor-pointer select-none rounded-[10px] p-[10px] transition-all duration-300 ease-in-out ${
         isExpanded
-          ? "border border-[#EDEDED] bg-white shadow-sm"
-          : "border border-[#FF8D28] bg-[#D39208]/[0.05]"
+          ? "border border-border bg-surface shadow-sm"
+          : "border border-warning bg-warning/5"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-semibold text-gray-900">
-          {alertData?.message ?? "Aucun message"}
+          {alertData?.message ?? t("Aucun message")}
         </span>
 
         <span className="text-sm font-medium text-blue-600 shrink-0">
@@ -42,7 +44,7 @@ const AlertCard = ({ alertData }) => {
       </div>
 
       <div className="mt-1 text-sm text-gray-600">
-        {location?.name ?? "Emplacement inconnu"}
+        {location?.name ?? t("Emplacement inconnu")}
       </div>
 
       <div
@@ -53,10 +55,10 @@ const AlertCard = ({ alertData }) => {
         }`}
       >
         <div className="overflow-hidden">
-          <div className="space-y-1.5 rounded-[8px] border border-[#C4B5FD] bg-[#F5F3FF]/50 p-3 text-xs text-gray-800">
+          <div className="space-y-1.5 rounded-[8px] border border-border bg-background p-3 text-xs text-gray-800">
             <div>
               <span className="font-medium text-gray-600">
-                {alerts.agentId}
+                {t(alerts.agentId)}
               </span>{" "}
               <span className="font-semibold text-gray-900">
                 {agent?.agent_code ?? "—"}
@@ -65,7 +67,7 @@ const AlertCard = ({ alertData }) => {
 
             <div>
               <span className="font-medium text-gray-600">
-                {alerts.agentName}
+                {t(alerts.agentName)}
               </span>{" "}
               <span className="font-semibold text-gray-900">
                 {agent?.name ?? "—"}
@@ -74,7 +76,7 @@ const AlertCard = ({ alertData }) => {
 
             <div>
               <span className="font-medium text-gray-600">
-                {alerts.location}
+                {t(alerts.location)}
               </span>{" "}
               <span className="font-semibold text-gray-900">
                 {location?.name ?? "—"}
@@ -82,14 +84,14 @@ const AlertCard = ({ alertData }) => {
             </div>
 
             <div>
-              <span className="font-medium text-gray-600">{alerts.time}</span>{" "}
+              <span className="font-medium text-gray-600">{t(alerts.time)}</span>{" "}
               <span className="font-semibold text-gray-900">
                 {formatTime(alertData?.timestamp ?? "")}
               </span>
             </div>
 
             <div>
-              <span className="font-medium text-gray-600">{alerts.phone}</span>{" "}
+              <span className="font-medium text-gray-600">{t(alerts.phone)}</span>{" "}
               <span className="font-semibold text-gray-900">
                 {agent?.phone ? formatPhone(agent.phone) : "—"}
               </span>

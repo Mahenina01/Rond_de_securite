@@ -114,6 +114,13 @@ public class AlertsServiceImpl implements AlertsService {
     return response;
   }
 
+  @Override
+  @Transactional
+  public void deleteAlert(Long id) {
+    alertsRepository.delete(findAlert(id));
+    alertsRealtimeService.publishDeleted(id);
+  }
+
   private Alerts findAlert(Long id) {
     return alertsRepository.findById(id)
         .orElseThrow(() -> new EntityNotFoundException(
@@ -121,11 +128,22 @@ public class AlertsServiceImpl implements AlertsService {
   }
 
   private AlertsResponse toResponse(Alerts alert) {
+    Location location = alert.getLocationId();
+    var agent = location.getAgent();
     return new AlertsResponse(
         alert.getId(),
         alert.getMessage(),
-        alert.getLocationId().getId(),
+        location.getId(),
         alert.getStatus(),
-        alert.getReceivedAt());
+        alert.getReceivedAt(),
+        alert.getReceivedAt(),
+        new AlertsResponse.LocationDetails(location.getName()),
+        agent == null
+            ? null
+            : new AlertsResponse.AgentDetails(
+                agent.getId(),
+                agent.getAgentCode(),
+                agent.getName(),
+                agent.getPhone()));
   }
 }

@@ -1,5 +1,6 @@
 import textVariant from "../../constants/textSideBar";
 import ExportIcon from "../../assets/icons/exporter.svg?react";
+import useLanguage from "../../context/useLanguage";
 
 const IconButton = ({
   variant = "dashboard",
@@ -10,6 +11,7 @@ const IconButton = ({
   text = "button",
 }) => {
   const config = textVariant[variant];
+  const { t } = useLanguage();
 
   if (!config) return null;
 
@@ -28,7 +30,7 @@ const IconButton = ({
       <SelectedIcon className="w-5 h-5 shrink-0" />
 
       <span className="text-sm font-medium">
-        {isButton ? text : config.text}
+        {t(isButton ? text : config.text)}
       </span>
     </button>
   );

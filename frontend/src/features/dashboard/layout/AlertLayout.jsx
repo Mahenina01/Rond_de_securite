@@ -1,60 +1,107 @@
+import { useEffect, useRef, useState } from "react";
 import AlertIcon from "../../../assets/icons/alert 1.svg?react";
 import AlertCard from "../../../components/ui/AlertCard";
+import alertsService from "../../../service/alertsService";
+import { connectAlertsWebSocket } from "../../../service/alertsWebSocket";
+import tokenService from "../../../service/tokenService";
+import useLanguage from "../../../context/useLanguage";
 
 const AlertLayout = () => {
-  const alertsData = [
-    {
-      message: "Passage non détecté",
-      timestamp: "2026-10-14T14:30:00",
-      location: { name: "Point de contrôle A" },
-      agent: {
-        agent_code: "AG-001",
-        name: "Jean",
-        phone: "0341234567",
+  const { t } = useLanguage();
+  const [alertsData, setAlertsData] = useState([]);
+  const [error, setError] = useState("");
+  const alertsById = useRef(new Map());
+
+  useEffect(() => {
+    let active = true;
+    const realtimeEvents = new Map();
+
+    const publishAlerts = () => {
+      setAlertsData(
+        [...alertsById.current.values()].sort(
+          (a, b) =>
+            new Date(b.receivedAt ?? b.timestamp ?? 0).getTime() -
+            new Date(a.receivedAt ?? a.timestamp ?? 0).getTime(),
+        ),
+      );
+    };
+
+    const disconnect = connectAlertsWebSocket({
+      onAlertEvent: (event) => {
+        if (!active || !event?.action || !event.alertId) return;
+
+        realtimeEvents.set(event.alertId, event);
+        if (event.action === "DELETE") {
+          alertsById.current.delete(event.alertId);
+        } else if (event.action === "UPSERT" && event.alert) {
+          alertsById.current.set(event.alertId, event.alert);
+        } else {
+          return;
+        }
+
+        publishAlerts();
+        setError("");
       },
-    },
-    {
-      message: "Retard de passage",
-      timestamp: "2026-10-14T15:45:00",
-      location: { name: "Entrée principale" },
-      agent: {
-        agent_code: "AG-002",
-        name: "Marie",
-        phone: "0321234567",
+      onAuthError: () => {
+        tokenService.removeToken();
+        window.location.replace("/signin");
       },
-    },
-    {
-      message: "Anomalie détectée pendant la ronde",
-      timestamp: "2026-10-14T16:20:00",
-      location: { name: "Point de contrôle B" },
-      agent: {
-        agent_code: "AG-003",
-        name: "Andry",
-        phone: "0331234567",
+      onError: (webSocketError) => {
+        console.error("Erreur WebSocket des alertes :", webSocketError);
       },
-    },
-  ];
+    });
+
+    alertsService
+      .getAll()
+      .then((alerts) => {
+        if (!active || !Array.isArray(alerts)) return;
+        alertsById.current = new Map(alerts.map((alert) => [alert.id, alert]));
+        realtimeEvents.forEach((event, alertId) => {
+          if (event.action === "DELETE") {
+            alertsById.current.delete(alertId);
+          } else if (event.action === "UPSERT" && event.alert) {
+            alertsById.current.set(alertId, event.alert);
+          }
+        });
+        publishAlerts();
+        setError("");
+      })
+      .catch((requestError) => {
+        console.error("Impossible de charger les alertes :", requestError);
+        if (active) {
+          setError("          {t(error)}");
+        }
+      });
+
+    return () => {
+      active = false;
+      disconnect();
+    };
+  }, []);
 
   return (
-    <div className="flex h-[380px] min-h-0 flex-col gap-3 overflow-hidden rounded-lg bg-surface p-4">
+    <div className="flex h-[380px] min-h-0 flex-col gap-3 overflow-hidden rounded-lg bg-surface p-4 w-full">
       {/* Titre fixe */}
       <div className="flex flex-row items-center gap-2 shrink-0">
         <AlertIcon className="w-8 h-8 text-warning" />
-        <h1 className="font-sans text-2xl text-text-primary">Alertes</h1>
+        <h1 className="font-sans text-2xl text-text-primary">{t("Alertes")}</h1>
       </div>
 
       {/* Description fixe */}
       <p className="font-sans text-sm shrink-0 text-text-secondary">
-        Derniers événements détectés sur le terrain.
+        {t("Derniers événements détectés sur le terrain.")}
       </p>
 
       {/* Seule cette zone défile */}
       <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-y-auto">
-        {alertsData.map((alert, index) => (
-          <AlertCard
-            key={`${alert.agent.agent_code}-${index}`}
-            alertData={alert}
-          />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {!error && alertsData.length === 0 && (
+          <p className="text-sm text-text-secondary">
+            {t("Aucune alerte enregistrée.")}
+          </p>
+        )}
+        {alertsData.map((alert) => (
+          <AlertCard key={alert.id} alertData={alert} />
         ))}
       </div>
     </div>

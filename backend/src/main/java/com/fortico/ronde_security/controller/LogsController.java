@@ -43,9 +43,9 @@ public class LogsController {
   public ResponseEntity<List<LogsResponse>> getLogs(
       @RequestParam(required = false) LogStatus status,
       @RequestParam(required = false) LocalDate date,
-      @RequestParam(name = "agent_id", required = false) Long agentId,
+      @RequestParam(name = "agent_name", required = false) String agentName,
       @RequestParam(name = "device_id", required = false) Long deviceId,
-      @RequestParam(name = "location_id", required = false) Long locationId,
+      @RequestParam(name = "location_name", required = false) String locationName,
       @RequestParam(required = false) Instant from,
       @RequestParam(required = false) Instant to,
       @RequestParam(defaultValue = "timestamp") String sort,
@@ -54,9 +54,9 @@ public class LogsController {
     List<LogsResponse> logs = logsService.getLogs(
         status,
         date,
-        agentId,
+        agentName,
         deviceId,
-        locationId,
+        locationName,
         from,
         to,
         sort,

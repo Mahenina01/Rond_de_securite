@@ -16,9 +16,9 @@ public interface LogService {
   List<LogsResponse> getLogs(
       LogStatus status,
       LocalDate date,
-      Long agentId,
+      String agentName,
       Long deviceId,
-      Long locationId,
+      String locationName,
       Instant from,
       Instant to,
       String sort,

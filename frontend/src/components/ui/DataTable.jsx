@@ -1,4 +1,8 @@
+import useLanguage from "../../context/useLanguage";
+
 export default function DataTable({ columns, data, onEdit, onDelete, onCopy }) {
+  const { t } = useLanguage();
+
   return (
     // Conteneur principal avec défilement horizontal si l'écran est trop petit
     <div className="w-full overflow-x-auto">
@@ -45,7 +49,7 @@ export default function DataTable({ columns, data, onEdit, onDelete, onCopy }) {
                 colSpan={columns.length}
                 className="py-6 text-sm text-center text-gray-500"
               >
-                Aucun résultat trouvé.
+                {t("Aucun résultat trouvé.")}
               </td>
             </tr>
           )}

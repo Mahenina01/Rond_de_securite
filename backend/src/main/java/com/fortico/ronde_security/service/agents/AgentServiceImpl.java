@@ -4,7 +4,12 @@ import com.fortico.ronde_security.dtos.agent.AgentRequest;
 import com.fortico.ronde_security.dtos.agent.AgentResponse;
 import com.fortico.ronde_security.exception.DuplicateAgentCodeException;
 import com.fortico.ronde_security.exception.ResourceNotFoundException;
+import com.fortico.ronde_security.repo.AlertsRepository;
 import com.fortico.ronde_security.repo.AgentRepository;
+import com.fortico.ronde_security.repo.DevicesRepository;
+import com.fortico.ronde_security.repo.LocationRepository;
+import com.fortico.ronde_security.repo.LogsRepository;
+import com.fortico.ronde_security.service.dashboard.DeviceStatusHistoryService;
 import com.fortico.ronde_security.model.Agents;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,9 +20,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
+    private final AlertsRepository alertsRepository;
+    private final DevicesRepository devicesRepository;
+    private final LocationRepository locationRepository;
+    private final LogsRepository logsRepository;
+    private final DeviceStatusHistoryService deviceStatusHistoryService;
 
-    public AgentServiceImpl(AgentRepository agentRepository) {
+    public AgentServiceImpl(
+            AgentRepository agentRepository,
+            AlertsRepository alertsRepository,
+            DevicesRepository devicesRepository,
+            LocationRepository locationRepository,
+            LogsRepository logsRepository,
+            DeviceStatusHistoryService deviceStatusHistoryService) {
         this.agentRepository = agentRepository;
+        this.alertsRepository = alertsRepository;
+        this.devicesRepository = devicesRepository;
+        this.locationRepository = locationRepository;
+        this.logsRepository = logsRepository;
+        this.deviceStatusHistoryService = deviceStatusHistoryService;
     }
 
     @Override
@@ -79,8 +100,16 @@ public class AgentServiceImpl implements AgentService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Agents agent = getAgentById(id);
+        logsRepository.deleteByAgent_Id(id);
+        logsRepository.deleteByDevice_Agent_Id(id);
+        logsRepository.deleteByLocationId_Agent_Id(id);
+        alertsRepository.deleteByLocationId_Agent_Id(id);
+        deviceStatusHistoryService.recordAgentDevicesDeleted(id);
+        devicesRepository.deleteByAgent_Id(id);
+        locationRepository.deleteByAgent_Id(id);
         agentRepository.delete(agent);
     }
 

@@ -9,17 +9,20 @@ import Button from "../../components/ui/Button";
 import UserIcon from "../../assets/icons/user-round-plus.svg?react";
 import agentsService from "../../service/agentsService";
 import toast from "react-hot-toast";
+import useLanguage from "../../context/useLanguage";
 
 const emptyForm = {
   agentCode: "",
   name: "",
   phone: "",
+  isActive: true,
 };
 
 const getErrorMessage = (error, fallback) =>
   error.response?.data?.message || error.response?.data?.detail || fallback;
 
 const Agents = () => {
+  const { t } = useLanguage();
   const [agents, setAgents] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,8 +38,6 @@ const Agents = () => {
 
   // Charger les agents depuis le backend
   const loadAgents = useCallback(async () => {
-    setLoading(true);
-
     try {
       const data = await agentsService.getAll();
 
@@ -50,20 +51,28 @@ const Agents = () => {
             : null;
 
       if (!list) {
-        throw new Error("Le backend n'a pas renvoyé une liste d'agents.");
+        throw new Error(t("Le backend n'a pas renvoyé une liste d'agents."));
       }
 
       setAgents(list);
     } catch (error) {
-      console.error("Erreur de chargement des agents :", error);
-      toast.error(getErrorMessage(error, "Impossible de charger les agents."));
+      console.error(t("Erreur de chargement des agents :"), error);
+      toast.error(getErrorMessage(error, t("Impossible de charger les agents.")));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
-    loadAgents();
+    let cancelled = false;
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) return loadAgents();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [loadAgents]);
 
   const resetForm = () => {
@@ -107,6 +116,7 @@ const Agents = () => {
       agentCode: agent.agentCode ?? "",
       name: agent.name ?? "",
       phone: agent.phone ?? "",
+      isActive: agent.isActive ?? true,
     });
 
     setFormError("");
@@ -122,7 +132,7 @@ const Agents = () => {
     };
 
     if (!payload.agentCode || !payload.name) {
-      setFormError("Le matricule et le nom complet sont obligatoires.");
+      setFormError(t("Le matricule et le nom complet sont obligatoires."));
       return;
     }
 
@@ -133,40 +143,47 @@ const Agents = () => {
     );
 
     if (duplicate) {
-      setFormError("Ce matricule existe déjà.");
+      setFormError(t("Ce matricule existe déjà."));
       return;
     }
 
     setSubmitting(true);
+    let updatingStatus = false;
 
     try {
       if (editingAgent) {
-        await agentsService.update(editingAgent.id, {
-          ...payload,
-          isActive: editingAgent.isActive,
-        });
+        await agentsService.update(editingAgent.id, payload);
 
-        toast.success("Agent modifié avec succès.");
+        if (formData.isActive !== (editingAgent.isActive ?? true)) {
+          updatingStatus = true;
+          await agentsService.updateStatus(editingAgent.id, formData.isActive);
+          updatingStatus = false;
+        }
+
+        toast.success(t("Agent modifié avec succès."));
       } else {
         await agentsService.create({
           ...payload,
           isActive: true,
         });
 
-        toast.success("Agent créé avec succès.");
+        toast.success(t("Agent créé avec succès."));
       }
 
       setIsModalOpen(false);
       resetForm();
+      setLoading(true);
       await loadAgents();
     } catch (error) {
-      console.error("Erreur d'enregistrement de l'agent :", error);
+      console.error(t("Erreur d'enregistrement de l'agent :"), error);
 
       const message = getErrorMessage(
         error,
-        editingAgent
-          ? "Impossible de modifier cet agent."
-          : "Impossible de créer cet agent.",
+        updatingStatus
+          ? t("Impossible de modifier le statut de cet agent.")
+          : editingAgent
+            ? t("Impossible de modifier cet agent.")
+            : t("Impossible de créer cet agent."),
       );
 
       setFormError(message);
@@ -201,13 +218,15 @@ const Agents = () => {
         previous.filter((agent) => agent.id !== selectedAgent.id),
       );
 
-      toast.success("Agent supprimé avec succès.");
+      toast.success(t("Agent supprimé avec succès."));
       setIsDeleteModalOpen(false);
       setSelectedAgent(null);
     } catch (error) {
-      console.error("Erreur de suppression :", error);
+      console.error(t("Erreur de suppression :"), error);
 
-      toast.error(getErrorMessage(error, "Impossible de supprimer cet agent."));
+      toast.error(
+        getErrorMessage(error, t("Impossible de supprimer cet agent.")),
+      );
     } finally {
       setDeleting(false);
     }
@@ -235,19 +254,19 @@ const Agents = () => {
 
   const agentColumns = [
     {
-      header: "ID Agent",
+      header: t("ID Agent"),
       accessor: "agentCode",
     },
     {
-      header: "Nom complet",
+      header: t("Nom complet"),
       accessor: "name",
     },
     {
-      header: "Téléphone",
+      header: t("Téléphone"),
       accessor: "phone",
     },
     {
-      header: "Statut",
+      header: t("Statut"),
       render: (row) => (
         <span
           className={
@@ -256,12 +275,12 @@ const Agents = () => {
               : "text-sm font-medium text-danger"
           }
         >
-          {row.isActive ? "Actif" : "Inactif"}
+          {row.isActive ? t("Actif") : t("Inactif")}
         </span>
       ),
     },
     {
-      header: "Actions",
+      header: t("Actions"),
       align: "right",
       render: (row) => (
         <div className="flex items-center justify-end gap-3">
@@ -269,8 +288,8 @@ const Agents = () => {
             type="button"
             onClick={() => handleEdit(row)}
             className="text-gray-500 transition-colors hover:text-blue-600"
-            title="Modifier"
-            aria-label={`Modifier ${row.name}`}
+            title={t("Modifier")}
+            aria-label={`${t("Modifier")} ${row.name}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -292,8 +311,8 @@ const Agents = () => {
             type="button"
             onClick={() => openDeleteModal(row)}
             className="text-red-500 transition-colors hover:text-red-700"
-            title="Supprimer"
-            aria-label={`Supprimer ${row.name}`}
+            title={t("Supprimer")}
+            aria-label={`${t("Supprimer")} ${row.name}`}
           >
             <Delete className="w-4 h-4 text-danger" />
           </button>
@@ -305,14 +324,14 @@ const Agents = () => {
   return (
     <div className="flex flex-col gap-6 p-4 rounded-lg bg-surface">
       <h1 className="font-sans text-xl text-text-primary">
-        Gestion des Agents
+        {t("Gestion des Agents")}
       </h1>
 
       <div className="flex flex-col items-start justify-between w-full gap-4 sm:flex-row sm:items-center">
         <div className="w-full sm:w-[320px]">
           <Input
             variant="search"
-            placeholder="Recherche..."
+            placeholder={t("Recherche...")}
             name="searchQuery"
             value={searchQuery}
             onChange={(value) => {
@@ -334,12 +353,12 @@ const Agents = () => {
       </div>
 
       <div className="text-sm font-semibold text-gray-800">
-        Résultats ({formattedCount})
+        {t("Résultats")} ({formattedCount})
       </div>
 
       {loading ? (
         <p className="py-6 text-sm text-text-secondary">
-          Chargement des agents...
+          {t("Chargement des agents...")}
         </p>
       ) : (
         <DataTable columns={agentColumns} data={filteredAgents} />
@@ -348,7 +367,11 @@ const Agents = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingAgent ? "Modifier un agent" : "Ajout d'un nouvel agent"}
+        title={
+          editingAgent
+            ? t("Modifier un agent")
+            : t("Ajout d'un nouvel agent")
+        }
         IconTitle={UserIcon}
         footer={
           <>
@@ -358,7 +381,7 @@ const Agents = () => {
               variant="outline"
               disabled={submitting}
             >
-              Annuler
+              {t("Annuler")}
             </Button>
 
             <Button
@@ -368,24 +391,25 @@ const Agents = () => {
               disabled={!isFormValid || submitting}
             >
               {submitting
-                ? "Enregistrement..."
+                ? t("Enregistrement...")
                 : editingAgent
-                  ? "Enregistrer"
-                  : "Ajouter"}
+                  ? t("Enregistrer")
+                  : t("Ajouter")}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <p className="font-sans text-sm text-text-secondary">
-            Renseignez les informations nécessaires pour créer ou modifier la
-            fiche de l'agent.
+            {t(
+              "Renseignez les informations nécessaires pour créer ou modifier la fiche de l'agent.",
+            )}
           </p>
 
           <Input
             variant="default"
-            label="Matricule de l'agent"
-            placeholder="Ex. : AG-061"
+            label={t("Matricule de l'agent")}
+            placeholder={t("Ex. : AG-061")}
             name="agentCode"
             value={formData.agentCode}
             onChange={handleChangeFor("agentCode")}
@@ -394,8 +418,8 @@ const Agents = () => {
 
           <Input
             variant="default"
-            label="Nom complet"
-            placeholder="Ex. : Rakoto Jean"
+            label={t("Nom complet")}
+            placeholder={t("Ex. : Rakoto Jean")}
             name="name"
             value={formData.name}
             onChange={handleChangeFor("name")}
@@ -404,12 +428,51 @@ const Agents = () => {
 
           <Input
             variant="default"
-            label="Téléphone (facultatif)"
-            placeholder="Ex. : 0341234567"
+            label={t("Téléphone (facultatif)")}
+            placeholder={t("Ex. : 0341234567")}
             name="phone"
             value={formData.phone}
             onChange={handleChangeFor("phone")}
           />
+
+          {editingAgent && (
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  {t("Statut de l’agent")}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {formData.isActive ? t("Actif") : t("Inactif")}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.isActive}
+                disabled={submitting}
+                aria-label={
+                  formData.isActive
+                    ? t("Désactiver l’agent")
+                    : t("Activer l’agent")
+                }
+                onClick={() =>
+                  setFormData((previous) => ({
+                    ...previous,
+                    isActive: !previous.isActive,
+                  }))
+                }
+                className={`relative h-6 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  formData.isActive ? "bg-primary" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                    formData.isActive ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {formError && (
             <p className="text-sm text-danger" role="alert">
@@ -422,7 +485,7 @@ const Agents = () => {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}
-        title={"Confirmer la suppression"}
+        title={t("Confirmer la suppression")}
         IconTitle={UserIcon}
         footer={
           <>
@@ -432,7 +495,7 @@ const Agents = () => {
               disabled={deleting}
               className="px-4 py-2 text-sm border border-gray-300 rounded-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Annuler
+              {t("Annuler")}
             </button>
 
             <button
@@ -441,17 +504,17 @@ const Agents = () => {
               disabled={deleting}
               className="px-4 py-2 text-sm text-white rounded-lg bg-danger disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {deleting ? "Suppression..." : "Supprimer"}
+              {deleting ? t("Suppression...") : t("Supprimer")}
             </button>
           </>
         }
       >
         <p className="py-4 text-sm text-text-secondary">
-          Êtes-vous sûr de vouloir supprimer{" "}
+          {t("Êtes-vous sûr de vouloir supprimer ")}{" "}
           {selectedAgent?.name
-            ? `l'agent ${selectedAgent?.name}`
-            : "cet élément"}{" "}
-          ? Cette action est irréversible.
+            ? `${t("l'agent")} ${selectedAgent.name}`
+            : t("cet élément")}{" "}
+          ? {t("Cette action est irréversible.")}
         </p>
       </Modal>
     </div>

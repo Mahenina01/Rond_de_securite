@@ -7,18 +7,19 @@ import DataTable from "../../../components/ui/DataTable";
 import api from "../../../api/axios.js";
 import tokenService from "../../../service/tokenService";
 import { connectLogWebSocket } from "../../../service/logWebSocket.js";
+import useLanguage from "../../../context/useLanguage";
 
 const MAX_LOGS = 10;
 
 // Formater une date ISO en date et heure lisibles
-const formatDateTime = (value) => {
+const formatDateTime = (value, language) => {
   if (!value) return "—";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "—";
 
-  return new Intl.DateTimeFormat("fr-FR", {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "fr-FR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -29,6 +30,7 @@ const formatDateTime = (value) => {
 };
 
 const TableLayout = ({ data = [] }) => {
+  const { language, t } = useLanguage();
   const [logs, setLogs] = useState(() => data.slice(0, MAX_LOGS));
 
   // Ajouter les nouveaux logs en tête sans doublons
@@ -116,34 +118,30 @@ const TableLayout = ({ data = [] }) => {
 
   const checkpointColumns = [
     {
-      header: "Date & heure",
+      header: t("Date & heure"),
       accessor: "timestamp",
-      render: (row) => <span>{formatDateTime(row.timestamp)}</span>,
+      render: (row) => <span>{formatDateTime(row.timestamp, language)}</span>,
     },
     {
-      header: "ID Agent",
+      header: t("ID Agent"),
       accessor: "agentCode",
     },
     {
-      header: "Nom agent",
-      accessor: "agentCode",
-      render: (row) => row.agentCode || "—",
+      header: t("Nom agent"),
+      accessor: "agentName",
+      render: (row) => row.agentName || "—",
     },
     {
-      header: "Nom appareil",
+      header: t("Nom appareil"),
       accessor: "deviceCode",
     },
     {
-      header: "Point de contrôle",
-      accessor: "locationId",
-      render: (row) => `Emplacement ${row.locationId ?? "—"}`,
+      header: t("Emplacement"),
+      accessor: "location",
+      render: (row) => row.location ?? "—",
     },
     {
-      header: "ID checkpoint",
-      accessor: "locationId",
-    },
-    {
-      header: "Statut",
+      header: t("Statut"),
       accessor: "status",
       render: (row) => {
         const isSuccess = row.status === "SUCCESS";
@@ -156,7 +154,7 @@ const TableLayout = ({ data = [] }) => {
               <Xicon className="w-4 h-4 text-danger" />
             )}
 
-            <span>{isSuccess ? "Validé" : "Non validé"}</span>
+            <span>{isSuccess ? t("Validé") : t("Non validé")}</span>
           </div>
         );
       },

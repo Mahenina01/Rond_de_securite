@@ -4,8 +4,10 @@ import Button from "../../components/ui/Button";
 // Importe l'icône SVG de l'ordinateur (assure-toi d'avoir ton fichier ou adapte le chemin)
 import ResetPasswordIcon from "../../assets/icons/secure-password.svg?react";
 import { useNavigate } from "react-router";
+import useLanguage from "../../context/useLanguage";
 
 export default function ResetPasswordPage() {
+  const { t } = useLanguage();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,7 +19,7 @@ export default function ResetPasswordPage() {
       return;
     }
     if (password.length < 8) {
-      alert("Le mot de passe doit contenir au moins 8 caractères.");
+      alert(t("Le mot de passe doit contenir au moins 8 caractères."));
       return;
     }
     setIsSubmitting(true);
@@ -25,7 +27,7 @@ export default function ResetPasswordPage() {
 
     setTimeout(() => {
       setIsSubmitting(false);
-      alert("Votre mot de passe a été réinitialisé avec succès !");
+      alert(t("Votre mot de passe a été réinitialisé avec succès !"));
     }, 1500);
 
     //TODO : verification
@@ -41,18 +43,19 @@ export default function ResetPasswordPage() {
 
         <div className="flex flex-col gap-2 text-center">
           <h1 className="text-xl font-black tracking-tight text-text-primary">
-            CRÉEZ UN NOUVEAU MOT DE PASSE
+            {t("CRÉEZ UN NOUVEAU MOT DE PASSE")}
           </h1>
           <p className="px-2 text-sm leading-relaxed text-text-secondary">
-            Votre adresse e-mail a été vérifiée. Choisissez un nouveau mot de
-            passe sécurisé pour retrouver l'accès à votre compte.
+            {t(
+              "Votre adresse e-mail a été vérifiée. Choisissez un nouveau mot de passe sécurisé pour retrouver l'accès à votre compte.",
+            )}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-[20px]">
           <Input
             variant="password"
-            label="Nouveau mot de passe"
+            label={t("Nouveau mot de passe")}
             name="password"
             placeholder="••••••••"
             value={password}
@@ -62,7 +65,7 @@ export default function ResetPasswordPage() {
 
           <Input
             variant="password"
-            label="Confirmer mot de passe"
+            label={t("Confirmer mot de passe")}
             name="confirmPassword"
             placeholder="••••••••"
             value={confirmPassword}
@@ -71,9 +74,9 @@ export default function ResetPasswordPage() {
           />
 
           <p className="text-xs leading-normal text-text-secondary">
-            Votre mot de passe doit contenir au moins 8 caractères. Utilisez une
-            combinaison de lettres, de chiffres et de caractères spéciaux pour
-            renforcer sa sécurité.
+            {t(
+              "Votre mot de passe doit contenir au moins 8 caractères. Utilisez une combinaison de lettres, de chiffres et de caractères spéciaux pour renforcer sa sécurité.",
+            )}
           </p>
 
           <div className="flex items-center justify-between gap-4 pt-2">
@@ -83,7 +86,7 @@ export default function ResetPasswordPage() {
               className="justify-center"
               onClick={() => console.log("Retour en arrière")}
             >
-              Retour
+              {t("Retour")}
             </Button>
             <Button
               type="submit"
@@ -93,8 +96,8 @@ export default function ResetPasswordPage() {
               className="justify-center"
             >
               {isSubmitting
-                ? "Mise à jour..."
-                : "Réinitialiser le mot de passe"}
+                ? t("Mise à jour...")
+                : t("Réinitialiser le mot de passe")}
             </Button>
           </div>
         </form>

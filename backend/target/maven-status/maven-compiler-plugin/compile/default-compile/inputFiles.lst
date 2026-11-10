@@ -4,9 +4,12 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/config/MqttConfig.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/config/OpenApiConfig.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/config/SecurityConfig.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/config/StompAuthChannelInterceptor.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/config/WebSocketConfig.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/AgentController.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/AlertsController.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/DashboardController.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/DashboardStatsController.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/DevicesController.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/LocationController.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/controller/LogoController.java
@@ -17,8 +20,11 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/Agent/AgentResponse.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/agent/AgentRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/agent/AgentResponse.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/alerts/AlertRealtimeEvent.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/alerts/AlertsRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/alerts/AlertsResponse.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/dashboard/DashboardStatsResponse.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/dashboard/WeeklyPassageResponse.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/devices/DeviceProvisioningResponse.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/devices/DevicesRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/devices/DevicesResponse.java
@@ -43,11 +49,13 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/exception/DuplicateAgentCodeException.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/exception/DuplicateResourceException.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/exception/GlobalExceptionHandler.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/exception/ResourceInUseException.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/exception/ResourceNotFoundException.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/filter/JwtAuthenticationFilter.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/filter/JwtUtils.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Agents.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Alerts.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/DeviceStatusHistory.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Devices.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Location.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Logo.java
@@ -56,6 +64,7 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/model/Users.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/AgentRepository.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/AlertsRepository.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/DeviceStatusHistoryRepository.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/DevicesRepository.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/LocationRepository.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/repo/LogoRepository.java
@@ -72,6 +81,10 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/alerts/AlertsRealtimeService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/alerts/AlertsService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/alerts/AlertsServiceImpl.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/dashboard/DashboardStatsChangedEvent.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/dashboard/DashboardStatsService.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/dashboard/DeviceStatusHistoryService.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/dashboard/WeeklyPassageService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/devices/DevicesService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/devices/DevicesServicesImpl.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/location/LocationService.java
@@ -82,6 +95,7 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/LogService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/LogServiceImpl.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/LogsRealtimeService.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/SuccessfulLogRecordedEvent.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/notifications/NotificationService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/notifications/NotificationServiceImpl.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/utils/DeviceCryptoUtils.java
