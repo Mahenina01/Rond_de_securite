@@ -1,6 +1,12 @@
 
 package com.fortico.ronde_security.service;
 
+import java.io.IOException;
+
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,16 +30,19 @@ public class UserService {
   private final AuthenticationManager authenticationManager;
   private final PasswordEncoder passwordEncoder;
   private final JwtUtils jwtUtils;
+  private final UserPhotoStorageService userPhotoStorageService;
 
   public UserService(
       UserRepository userRepository,
       AuthenticationManager authenticationManager,
       PasswordEncoder passwordEncoder,
-      JwtUtils jwtUtils) {
+      JwtUtils jwtUtils,
+      UserPhotoStorageService userPhotoStorageService) {
     this.userRepository = userRepository;
     this.authenticationManager = authenticationManager;
     this.passwordEncoder = passwordEncoder;
     this.jwtUtils = jwtUtils;
+    this.userPhotoStorageService = userPhotoStorageService;
   }
 
   @Transactional
@@ -52,7 +61,7 @@ public class UserService {
     Users user = new Users();
     user.setUsername(request.getUsername().trim());
     user.setEmail(request.getEmail().trim());
-    user.setPhoto(request.getPhoto());
+    user.setPhoto("user.webp");
     user.setName(request.getName().trim());
 
     // Encoder le mot de passe avant l'enregistrement
@@ -142,11 +151,36 @@ public class UserService {
       user.setEmail(email);
     }
 
-    if (request.photo() != null) {
-      user.setPhoto(request.photo().trim());
-    }
-
     return toUserResponse(userRepository.save(user));
+  }
+
+  @Transactional
+  public UserResponse updateProfilePhoto(String authenticatedUsername, MultipartFile file) {
+    Users user = findUser(authenticatedUsername);
+    try {
+      user.setPhoto(userPhotoStorageService.store(file));
+      return toUserResponse(userRepository.save(user));
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+    } catch (IOException e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "Impossible d'enregistrer la photo de profil.",
+          e);
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public Resource getProfilePhoto(String authenticatedUsername) {
+    Users user = findUser(authenticatedUsername);
+    try {
+      return userPhotoStorageService.load(user.getPhoto());
+    } catch (IOException e) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND,
+          "La photo de profil est introuvable.",
+          e);
+    }
   }
 
   @Transactional
@@ -183,7 +217,7 @@ public class UserService {
   private UserResponse toUserResponse(Users user) {
     return new UserResponse(
         user.getId(),
-        user.getPhoto(),
+        "/users/me/photo",
         user.getUsername(),
         user.getName(),
         user.getEmail(),

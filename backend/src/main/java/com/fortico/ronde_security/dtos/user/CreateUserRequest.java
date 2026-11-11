@@ -21,9 +21,6 @@ public class CreateUserRequest {
   @Size(max = 255)
   private String email;
 
-  @Size(max = 500)
-  private String photo;
-
   @NotBlank(message = "Le mot de passe est obligatoire")
   @Size(min = 8, max = 72, message = "Le mot de passe doit être supperieur à 8 caracteres")
   private String password;

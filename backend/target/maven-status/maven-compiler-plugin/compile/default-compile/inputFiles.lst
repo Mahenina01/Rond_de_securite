@@ -75,6 +75,7 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/CustomUserDetailsService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/MqttMessageService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/MqttPublisherService.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/UserPhotoStorageService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/UserService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/agents/AgentService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/agents/AgentServiceImpl.java

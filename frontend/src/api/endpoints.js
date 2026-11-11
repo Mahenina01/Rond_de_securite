@@ -4,6 +4,7 @@ const endpoints = {
     logout: "/users/logout",
     me: "/users/me",
     profile: "/users/me",
+    photo: "/users/me/photo",
     password: "/users/me/password",
   },
 
@@ -33,6 +34,12 @@ const endpoints = {
   dashboard: {
     stats: "/dashboard/stats",
     weeklyPassages: "/dashboard/weekly-passages",
+  },
+
+  logo: {
+    current: "/logo",
+    create: "/logo",
+    update: "/logo",
   },
 
   notifications: {

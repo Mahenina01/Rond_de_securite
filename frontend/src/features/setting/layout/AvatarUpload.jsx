@@ -1,26 +1,26 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import CameraIcon from "../../../assets/icons/camera.svg?react";
 import AvatarDefaulIcon from "../../../assets/icons/user.svg";
 import useLanguage from "../../../context/useLanguage";
 
-const AvatarUpload = ({ initialImage = "", onImageChange, size = 240 }) => {
+const AvatarUpload = ({ value = "", onChange, size = 240 }) => {
   const { t } = useLanguage();
   const inputRef = useRef(null);
-  const [preview, setPreview] = useState(initialImage);
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
-    // Vérifier le format de l'image
-    if (!file.type.startsWith("image/")) {
-      alert(t("Veuillez sélectionner une image valide."));
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      !/\.(jpe?g|png|webp)$/i.test(file.name)
+    ) {
+      alert(t("Veuillez sélectionner une image JPEG, PNG ou WebP."));
       event.target.value = "";
       return;
     }
 
-    // Limiter la taille à 5 Mo
     if (file.size > 5 * 1024 * 1024) {
       alert(t("L'image ne doit pas dépasser 5 Mo."));
       event.target.value = "";
@@ -28,15 +28,7 @@ const AvatarUpload = ({ initialImage = "", onImageChange, size = 240 }) => {
     }
 
     const imageUrl = URL.createObjectURL(file);
-
-    setPreview((previous) => {
-      if (previous?.startsWith("blob:")) {
-        URL.revokeObjectURL(previous);
-      }
-      return imageUrl;
-    });
-
-    onImageChange?.(file);
+    onChange?.(file, imageUrl);
     event.target.value = "";
   };
 
@@ -45,10 +37,10 @@ const AvatarUpload = ({ initialImage = "", onImageChange, size = 240 }) => {
       {/* Avatar */}
       <div className="w-full h-full overflow-hidden bg-gray-200 rounded-full">
         <img
-          src={preview || AvatarDefaulIcon}
-          alt={preview ? t("Photo de profil") : t("Avatar par défaut")}
+          src={value || AvatarDefaulIcon}
+          alt={value ? t("Photo de profil") : t("Avatar par défaut")}
           className={`h-full w-full ${
-            preview ? "object-cover" : "object-contain p-6"
+            value ? "object-cover" : "object-contain p-6"
           }`}
         />
       </div>

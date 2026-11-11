@@ -57,7 +57,7 @@ public class LogoStorageService {
                     "Chemin de fichier invalide.");
         }
         Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
-        return "/uploads/logo" + filename;
+        return "/uploads/logo/" + filename;
 
     }
 

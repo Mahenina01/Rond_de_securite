@@ -8,7 +8,6 @@ import authService from "../../../service/authService";
 import useLanguage from "../../../context/useLanguage";
 
 const emptyProfile = {
-  photo: "",
   username: "",
   name: "",
   email: "",
@@ -19,15 +18,27 @@ const initialPassword = {
   newPassword: "",
 };
 
-const Profile = () => {
+const Profile = ({ onProfilePhotoUpdated }) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState(emptyProfile);
   const [savedProfile, setSavedProfile] = useState(emptyProfile);
   const [passwordData, setPasswordData] = useState(initialPassword);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPhoto, setSavingPhoto] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(
+    () => () => {
+      if (photoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    },
+    [photoPreview],
+  );
 
   // Charger le profil de l'utilisateur connecté
   const loadProfile = useCallback(async () => {
@@ -36,7 +47,6 @@ const Profile = () => {
       const profile = response?.data ?? response;
 
       const normalizedProfile = {
-        photo: profile.photo ?? "",
         username: profile.username ?? "",
         name: profile.name ?? "",
         email: profile.email ?? "",
@@ -44,6 +54,16 @@ const Profile = () => {
 
       setFormData(normalizedProfile);
       setSavedProfile(normalizedProfile);
+      try {
+        setPhotoPreview(
+          await authService.getProfilePhotoPreview(profile.photo),
+        );
+      } catch (error) {
+        toast.error(
+          error.response?.data?.message ??
+            t("Impossible de charger la photo de profil."),
+        );
+      }
     } catch (error) {
       toast.error(
         error.response?.data?.message ?? t("Impossible de charger le profil."),
@@ -91,6 +111,11 @@ const Profile = () => {
     }));
   };
 
+  const handlePhotoSelection = (file, preview) => {
+    setSelectedPhoto(file);
+    setPhotoPreview(preview);
+  };
+
   const hasProfileChanges =
     JSON.stringify(formData) !== JSON.stringify(savedProfile);
 
@@ -101,7 +126,6 @@ const Profile = () => {
     if (!hasProfileChanges || savingProfile) return;
 
     const payload = {
-      photo: formData.photo,
       username: formData.username.trim(),
       name: formData.name.trim(),
       email: formData.email.trim(),
@@ -114,7 +138,6 @@ const Profile = () => {
       const updatedProfile = response?.data ?? response;
 
       const normalizedProfile = {
-        photo: updatedProfile.photo ?? payload.photo,
         username: updatedProfile.username ?? payload.username,
         name: updatedProfile.name ?? payload.name,
         email: updatedProfile.email ?? payload.email,
@@ -131,6 +154,29 @@ const Profile = () => {
       );
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleProfilePhotoSubmit = async () => {
+    if (!selectedPhoto || savingPhoto) return;
+
+    setSavingPhoto(true);
+    try {
+      const updatedProfile = await authService.updateProfilePhoto(selectedPhoto);
+      const preview = await authService.getProfilePhotoPreview(
+        updatedProfile.photo,
+      );
+      setPhotoPreview(preview);
+      setSelectedPhoto(null);
+      await onProfilePhotoUpdated?.();
+      toast.success(t("Photo de profil mise à jour avec succès."));
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ??
+          t("Impossible d’enregistrer la photo de profil."),
+      );
+    } finally {
+      setSavingPhoto(false);
     }
   };
 
@@ -196,10 +242,29 @@ const Profile = () => {
         <div className="flex justify-center">
           <AvatarUpload
             size={150}
-            value={formData.photo}
-            onChange={handleChangeFor("photo")}
+            value={photoPreview}
+            onChange={handlePhotoSelection}
           />
         </div>
+        {selectedPhoto && (
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              label={
+                savingPhoto
+                  ? t("Enregistrement de la photo...")
+                  : t("Enregistrer la photo")
+              }
+              variant="primary"
+              disabled={savingPhoto}
+              onClick={handleProfilePhotoSubmit}
+            >
+              {savingPhoto
+                ? t("Enregistrement de la photo...")
+                : t("Enregistrer la photo")}
+            </Button>
+          </div>
+        )}
 
         <Input
           label={t("Nom")}

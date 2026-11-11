@@ -9,17 +9,31 @@ import LogoIcon from "../../../assets/icons/cardscan.svg";
 import Modal from "../../../components/ui/Modal";
 import Button from "../../../components/ui/Button";
 import useLanguage from "../../../context/useLanguage";
+import logoService from "../../../service/logoService";
+import toast from "react-hot-toast";
 
-const System = () => {
+const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_LOGO_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+
+const System = ({ hasLogo, logoUrl, onLogoUpdated }) => {
   const { language, setLanguage, t } = useLanguage();
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
   const [notifications, setNotifications] = useState(true);
   const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
-  const [logo, setLogo] = useState(null);
-  const [logoName, setLogoName] = useState("");
+  const [selectedLogo, setSelectedLogo] = useState(null);
+  const [savingLogo, setSavingLogo] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (selectedLogo?.preview) {
+        URL.revokeObjectURL(selectedLogo.preview);
+      }
+    },
+    [selectedLogo],
+  );
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -36,29 +50,52 @@ const System = () => {
 
     const extension = file.name.split(".").pop()?.toLowerCase();
 
-    if (!["png", "svg"].includes(extension)) {
-      alert(t("Veuillez sélectionner un fichier PNG ou SVG."));
+    if (
+      !ALLOWED_LOGO_TYPES.has(file.type) ||
+      !ALLOWED_LOGO_EXTENSIONS.has(extension)
+    ) {
+      toast.error(t("Veuillez sélectionner une image JPEG, PNG ou WebP."));
       event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert(t("Le fichier ne doit pas dépasser 5 Mo."));
+      toast.error(t("Le fichier ne doit pas dépasser 5 Mo."));
       event.target.value = "";
       return;
     }
 
-    if (logo?.preview) {
-      URL.revokeObjectURL(logo.preview);
-    }
-
-    setLogo({
+    setSelectedLogo({
       file,
       preview: URL.createObjectURL(file),
     });
 
-    setLogoName(file.name);
     event.target.value = "";
+  };
+
+  const handleLogoSave = async () => {
+    if (!selectedLogo || savingLogo) return;
+
+    setSavingLogo(true);
+    try {
+      const savedLogo = await logoService.save(selectedLogo.file, hasLogo);
+      setSelectedLogo(null);
+      toast.success(t("Logo mis à jour avec succès."));
+
+      try {
+        await onLogoUpdated(savedLogo.photo);
+      } catch (error) {
+        toast.error(
+          error.response?.data?.message ?? t("Impossible de charger le logo."),
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ?? t("Impossible d’enregistrer le logo."),
+      );
+    } finally {
+      setSavingLogo(false);
+    }
   };
 
   return (
@@ -179,7 +216,7 @@ const System = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".png,.svg,image/png,image/svg+xml"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             onChange={handleLogoChange}
             className="hidden"
           />
@@ -194,15 +231,15 @@ const System = () => {
             </span>
 
             <span className="flex items-center justify-center w-16 h-16 overflow-hidden text-2xl font-bold text-white rounded-xl bg-primary">
-              {logo ? (
+              {selectedLogo ? (
                 <img
-                  src={logo.preview}
+                  src={selectedLogo.preview}
                   alt={t("Logo sélectionné")}
                   className="object-contain w-full h-full"
                 />
               ) : (
                 <img
-                  src={LogoIcon}
+                  src={logoUrl || LogoIcon}
                   alt={t("Logo actuel")}
                   className="object-contain w-full h-full"
                 />
@@ -210,7 +247,8 @@ const System = () => {
             </span>
 
             <span className="text-xs text-text-secondary">
-              {logoName || "PNG / SVG"}
+              {selectedLogo?.file.name ||
+                (logoUrl ? t("Logo actuel") : "JPEG / PNG / WebP")}
             </span>
 
             <span className="flex items-center gap-1 text-xs text-primary">
@@ -218,6 +256,19 @@ const System = () => {
               {t("Cliquer pour modifier")}
             </span>
           </button>
+
+          {selectedLogo && (
+            <button
+              type="button"
+              onClick={handleLogoSave}
+              disabled={savingLogo}
+              className="mt-3 w-full rounded-lg bg-primary px-4 py-2 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingLogo
+                ? t("Enregistrement du logo...")
+                : t("Enregistrer le logo")}
+            </button>
+          )}
         </div>
       </section>
 

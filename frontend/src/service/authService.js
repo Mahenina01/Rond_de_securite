@@ -44,6 +44,22 @@ const authService = {
     return response.data;
   },
 
+  updateProfilePhoto: async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.put(endpoints.auth.photo, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
+  getProfilePhotoPreview: async (photoPath = endpoints.auth.photo) => {
+    const response = await api.get(photoPath, { responseType: "blob" });
+    return URL.createObjectURL(response.data);
+  },
+
   changePassword: async (passwordData) => {
     const response = await api.patch(endpoints.auth.password, passwordData);
     return response.data;

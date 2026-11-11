@@ -15,7 +15,7 @@ const navigationItems = [
   { variant: "setting", label: "Paramètres", to: "/settings" },
 ];
 
-const SideBar = ({ onNavigate }) => {
+const SideBar = ({ onNavigate, logoUrl }) => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const handleLogout = async () => {
@@ -40,9 +40,9 @@ const SideBar = ({ onNavigate }) => {
         aria-label={t("Navigation principale")}
       >
         <div className="flex flex-row items-center gap-2 pb-4">
-          <img src={logo} alt="logo" className="w-8 h-8 rounded-full" />
-          <h1 className="font-['Salsa',_sans-serif] text-2xl text-primary">
-            Ronde Security
+          <img src={logoUrl || logo} alt="logo" className="w-8 h-8" />
+          <h1 className="font-['Salsa',_sans-serif] text-3xl text-white font-bold">
+            Rond<span className="font-mono text-primary">ix</span>
           </h1>
         </div>
         {navigationItems.map((item) => (

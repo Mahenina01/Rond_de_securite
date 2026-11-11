@@ -324,6 +324,21 @@ const englishTranslations = {
   "Ouvrir les paramètres de sécurité": "Open security settings",
   "Logo sélectionné": "Selected logo",
   "Logo actuel": "Current logo",
+  "Veuillez sélectionner une image JPEG, PNG ou WebP.":
+    "Please select a JPEG, PNG, or WebP image.",
+  "Impossible de charger la photo de profil.":
+    "Unable to load the profile photo.",
+  "Photo de profil mise à jour avec succès.":
+    "Profile photo updated successfully.",
+  "Impossible d’enregistrer la photo de profil.":
+    "Unable to save the profile photo.",
+  "Enregistrement de la photo...": "Saving photo...",
+  "Enregistrer la photo": "Save photo",
+  "Logo mis à jour avec succès.": "Logo updated successfully.",
+  "Impossible d’enregistrer le logo.": "Unable to save the logo.",
+  "Impossible de charger le logo.": "Unable to load the logo.",
+  "Enregistrement du logo...": "Saving logo...",
+  "Enregistrer le logo": "Save logo",
   "Revenir à la page d'accueil": "Return to home page",
   "Choisir la langue": "Choose a language",
   Fermer: "Close",
