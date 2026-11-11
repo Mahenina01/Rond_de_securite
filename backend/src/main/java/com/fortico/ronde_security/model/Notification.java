@@ -35,7 +35,8 @@ public class Notification {
     @Column(length = 30)
     private String status = "ACTIVE";
 
-    
-
+    @Builder.Default
+    @Column(name = "is_read", nullable = false)
+    private boolean read = false;
 
 }

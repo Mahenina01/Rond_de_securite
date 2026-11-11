@@ -92,8 +92,8 @@ public class SecurityConfig {
     CorsConfiguration configuration = new CorsConfiguration();
 
     configuration.setAllowedOrigins(
-        List.of("http://localhost:5173/", "https://rond-de-securite.vercel.app/",
-            "https://rond-de-securite.onrender.com/"));
+        List.of("http://localhost:5173", "https://rond-de-securite.vercel.app",
+            "https://rond-de-securite.onrender.com"));
 
     configuration.setAllowedMethods(List.of(
         "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -101,7 +101,7 @@ public class SecurityConfig {
     configuration.setAllowedHeaders(List.of(
         "Authorization", "Content-Type", "Accept"));
 
-    configuration.setAllowCredentials(false);
+    configuration.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 

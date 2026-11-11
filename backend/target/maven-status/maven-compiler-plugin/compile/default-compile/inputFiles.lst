@@ -34,6 +34,7 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/logo/Logorequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/logs/LogsRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/logs/LogsResponse.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/notification/NotificationReadRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/notification/NotificationRequest.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/notification/NotificationResponse.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/dtos/user/ChangePasswordRequest.java
@@ -97,6 +98,7 @@
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/LogServiceImpl.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/LogsRealtimeService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/logs/SuccessfulLogRecordedEvent.java
+/media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/notifications/NotificationRealtimeService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/notifications/NotificationService.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/service/notifications/NotificationServiceImpl.java
 /media/Celesy20/FORTICO/Rond security/Rond_de_securite/backend/src/main/java/com/fortico/ronde_security/utils/DeviceCryptoUtils.java

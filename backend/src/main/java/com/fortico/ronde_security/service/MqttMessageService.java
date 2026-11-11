@@ -21,6 +21,7 @@ import com.fortico.ronde_security.enums.LogStatus;
 import com.fortico.ronde_security.model.Location;
 import com.fortico.ronde_security.repo.LocationRepository;
 import com.fortico.ronde_security.service.logs.LogService;
+import com.fortico.ronde_security.service.notifications.NotificationService;
 
 @Service
 public class MqttMessageService {
@@ -34,16 +35,19 @@ public class MqttMessageService {
   private final LogService logService;
   private final LocationRepository locationRepository;
   private final MqttPublisherService mqttPublisherService;
+  private final NotificationService notificationService;
 
   public MqttMessageService(
       ObjectMapper objectMapper,
       LogService logService,
       LocationRepository locationRepository,
-      MqttPublisherService mqttPublisherService) {
+      MqttPublisherService mqttPublisherService,
+      NotificationService notificationService) {
     this.objectMapper = objectMapper;
     this.logService = logService;
     this.locationRepository = locationRepository;
     this.mqttPublisherService = mqttPublisherService;
+    this.notificationService = notificationService;
   }
 
   @ServiceActivator(inputChannel = "mqttInputChannel")
@@ -53,6 +57,8 @@ public class MqttMessageService {
         .get("mqtt_topic", String.class);
 
     String payload = message.getPayload();
+    String deviceId = "inconnu";
+    String checkpointCode = "inconnu";
 
     try {
       if (topic == null || topic.isBlank()) {
@@ -65,7 +71,7 @@ public class MqttMessageService {
             "Le payload MQTT est vide.");
       }
 
-      String deviceId = extractDeviceId(topic);
+      deviceId = extractDeviceId(topic);
 
       log.info(
           "Message MQTT reçu : topic={}, device={}",
@@ -78,16 +84,17 @@ public class MqttMessageService {
             "Le payload MQTT doit être un objet JSON.");
       }
 
-      String checkpointCode = requiredText(json, "id_checkpoint");
+      checkpointCode = requiredText(json, "id_checkpoint");
       Instant timestamp = parseTimestamp(json.get("timestamp"));
 
       UUID eventUuid = parseEventUuid(
           json.get("id"), deviceId, payload);
+      String lookupCheckpointCode = checkpointCode;
 
       Location location = locationRepository
-          .findByCheckpointCode(checkpointCode)
+          .findByCheckpointCode(lookupCheckpointCode)
           .orElseThrow(() -> new IllegalArgumentException(
-              "Checkpoint introuvable : " + checkpointCode));
+              "Checkpoint introuvable : " + lookupCheckpointCode));
 
       if (location.getAgent() == null) {
         throw new IllegalArgumentException(
@@ -106,6 +113,12 @@ public class MqttMessageService {
           timestamp);
 
       LogsResponse savedLog = logService.createLog(request);
+      notificationService.createFromMqtt(
+          "Nouveau passage validé",
+          "Le passage de " + savedLog.agentName()
+              + " au point de contrôle " + savedLog.location()
+              + " a été validé.",
+          "VALIDATED");
 
       String ackPayload = objectMapper.writeValueAsString(
           new AckMessage(
@@ -151,7 +164,29 @@ public class MqttMessageService {
       log.error(
           "Échec du traitement MQTT : topic={}, payload={}",
           topic, payload, exception);
+      try {
+        notificationService.createRejectedMqtt(
+            "Nouvelle donnée non validée",
+            "Une donnée reçue de l'appareil " + deviceId
+                + " pour le point de contrôle " + checkpointCode
+                + " n'a pas été validée. Motif : "
+                + notificationReason(exception),
+            "NOT_VALIDATED");
+      } catch (Exception notificationException) {
+        log.error(
+            "Impossible de créer la notification pour le message MQTT : topic={}",
+            topic,
+            notificationException);
+      }
     }
+  }
+
+  private String notificationReason(Exception exception) {
+    String reason = exception.getMessage();
+    if (reason == null || reason.isBlank()) {
+      return "erreur de traitement.";
+    }
+    return reason.length() > 300 ? reason.substring(0, 300) : reason;
   }
 
   private void publishAckSafely(

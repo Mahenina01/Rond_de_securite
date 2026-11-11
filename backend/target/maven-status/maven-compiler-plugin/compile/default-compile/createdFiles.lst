@@ -20,7 +20,6 @@ com/fortico/ronde_security/controller/LocationController.class
 com/fortico/ronde_security/dtos/devices/DeviceProvisioningResponse.class
 com/fortico/ronde_security/dtos/Agent/AgentRequest.class
 com/fortico/ronde_security/utils/HmacUtils.class
-com/fortico/ronde_security/service/MqttMessageService.class
 com/fortico/ronde_security/dtos/Agent/AgentResponse.class
 com/fortico/ronde_security/service/logo/LogoStorageService.class
 com/fortico/ronde_security/repo/AlertsRepository.class
@@ -40,6 +39,7 @@ com/fortico/ronde_security/RondeSecurityApplication.class
 com/fortico/ronde_security/service/agents/AgentService.class
 com/fortico/ronde_security/service/alerts/AlertsService.class
 com/fortico/ronde_security/service/CustomUserDetailsService.class
+com/fortico/ronde_security/service/MqttMessageService$1.class
 com/fortico/ronde_security/exception/GlobalExceptionHandler.class
 com/fortico/ronde_security/dtos/devices/DevicesResponse.class
 com/fortico/ronde_security/service/alerts/AlertsRealtimeService.class
@@ -81,5 +81,4 @@ com/fortico/ronde_security/config/LogoWebConfig.class
 com/fortico/ronde_security/config/WebSocketConfig.class
 com/fortico/ronde_security/controller/LogoController.class
 com/fortico/ronde_security/repo/LogoRepository.class
-com/fortico/ronde_security/service/MqttMessageService$AckMessage.class
 com/fortico/ronde_security/dtos/user/UserResponse.class

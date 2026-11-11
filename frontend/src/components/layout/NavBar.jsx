@@ -21,6 +21,7 @@ const NavBar = ({
   onProfileClick,
   onMenuClick,
   isMenuOpen = false,
+  isNotificationPanelOpen = false,
 }) => {
   const location = useLocation();
   const { t } = useLanguage();
@@ -62,6 +63,7 @@ const NavBar = ({
         <button
           type="button"
           aria-label={`${t("Notifications")} : ${notificationCount} ${t("non lues")}`}
+          aria-expanded={isNotificationPanelOpen}
           onClick={onNotifClick}
           className="relative inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100"
         >

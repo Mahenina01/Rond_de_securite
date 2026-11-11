@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import com.fortico.ronde_security.service.notifications.NotificationService;
 import com.fortico.ronde_security.dtos.notification.NotificationRequest;
 import com.fortico.ronde_security.dtos.notification.NotificationResponse;
+import com.fortico.ronde_security.dtos.notification.NotificationReadRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 
@@ -46,5 +47,13 @@ public class NotificationController {
             @Valid @RequestBody NotificationRequest request) {
 
         return notificationService.update(id, request);
+    }
+
+    @PatchMapping("/{id}/read")
+    public NotificationResponse updateReadStatus(
+            @PathVariable @Positive Long id,
+            @Valid @RequestBody NotificationReadRequest request) {
+
+        return notificationService.updateReadStatus(id, request.read());
     }
 }

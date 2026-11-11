@@ -10,16 +10,22 @@ import com.fortico.ronde_security.model.Notification;
 import java.util.List;
 
 import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
         private final NotificationRepository notificationRepository;
+        private final NotificationRealtimeService notificationRealtimeService;
 
         public NotificationServiceImpl(
-                        NotificationRepository notificationRepository) {
+                        NotificationRepository notificationRepository,
+                        NotificationRealtimeService notificationRealtimeService) {
                 this.notificationRepository = notificationRepository;
+                this.notificationRealtimeService = notificationRealtimeService;
         }
 
         @Override
@@ -36,6 +42,51 @@ public class NotificationServiceImpl implements NotificationService {
 
                 return toResponse(saved);
 
+        }
+
+        @Override
+        @Transactional
+        public NotificationResponse createFromMqtt(
+                        String title,
+                        String description,
+                        String type) {
+                return saveMqttNotification(title, description, type);
+        }
+
+        @Override
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public NotificationResponse createRejectedMqtt(
+                        String title,
+                        String description,
+                        String type) {
+                return saveMqttNotification(title, description, type);
+        }
+
+        private NotificationResponse saveMqttNotification(
+                        String title,
+                        String description,
+                        String type) {
+                Notification saved = notificationRepository.save(Notification.builder()
+                                .title(title)
+                                .description(description)
+                                .type(type)
+                                .status("ACTIVE")
+                                .build());
+                NotificationResponse response = toResponse(saved);
+
+                if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                        TransactionSynchronizationManager.registerSynchronization(
+                                        new TransactionSynchronization() {
+                                                @Override
+                                                public void afterCommit() {
+                                                        notificationRealtimeService.publish(response);
+                                                }
+                                        });
+                } else {
+                        notificationRealtimeService.publish(response);
+                }
+
+                return response;
         }
 
         @Override
@@ -138,6 +189,15 @@ public class NotificationServiceImpl implements NotificationService {
                                 notificationRepository.save(notification));
         }
 
+        @Override
+        @Transactional
+        public NotificationResponse updateReadStatus(Long id, boolean read) {
+                Notification notification = getNotification(id);
+                notification.setRead(read);
+
+                return toResponse(notificationRepository.save(notification));
+        }
+
         private Notification getNotification(Long id) {
 
                 return notificationRepository.findById(id)
@@ -155,7 +215,8 @@ public class NotificationServiceImpl implements NotificationService {
                                 notification.getDescription(),
                                 notification.getTimestamp(),
                                 notification.getType(),
-                                notification.getStatus());
+                                notification.getStatus(),
+                                notification.isRead());
         }
 
 }

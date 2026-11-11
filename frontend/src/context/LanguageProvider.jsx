@@ -30,6 +30,21 @@ const englishTranslations = {
   Désactivé: "Off",
   Langue: "Language",
   Notifications: "Notifications",
+  "Non lu": "Unread",
+  Lu: "Read",
+  État: "Read status",
+  Tous: "All",
+  Type: "Type",
+  "Rechercher une notification...": "Search notifications...",
+  "Aucune notification trouvée.": "No notifications found.",
+  "Fermer les notifications": "Close notifications",
+  "Marquer comme lu": "Mark as read",
+  "Impossible de marquer la notification comme lue.":
+    "Unable to mark the notification as read.",
+  "Impossible de charger les notifications.":
+    "Unable to load notifications.",
+  "Le serveur n'a pas renvoyé une liste valide de notifications.":
+    "The server did not return a valid notification list.",
   Activées: "On",
   Désactivées: "Off",
   Sécurité: "Security",
@@ -161,6 +176,13 @@ const englishTranslations = {
   "Non attribué": "Unassigned",
   "Modifier un point de contrôle": "Edit checkpoint",
   "Création d'un point de contrôle": "Create a checkpoint",
+  "Point de contrôle créé": "Checkpoint created",
+  "Afficher le QR code": "Show QR code",
+  "Scannez ce QR code pour lire les données du point créé.":
+    "Scan this QR code to read the created checkpoint data.",
+  "Scannez ce QR code pour lire les données du point de contrôle.":
+    "Scan this QR code to read the checkpoint data.",
+  "QR code du point de contrôle": "Checkpoint QR code",
   Créer: "Create",
   "Enregistrez un point de contrôle et associez-le à un agent responsable des rondes de sécurité.":
     "Register a checkpoint and assign it to an agent responsible for security patrols.",

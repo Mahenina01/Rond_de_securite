@@ -11,6 +11,7 @@ import locationsService from "../../service/locationsService";
 import toast from "react-hot-toast";
 import agentsService from "../../service/agentsService";
 import useLanguage from "../../context/useLanguage";
+import QRCode from "react-qr-code";
 
 const emptyForm = {
   checkpointCode: "",
@@ -47,6 +48,7 @@ const Locations = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [qrCheckpoint, setQrCheckpoint] = useState(null);
 
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
@@ -87,7 +89,9 @@ const Locations = () => {
 
       if (!list) {
         throw new Error(
-          t("Le serveur n'a pas renvoyé une liste valide de points de contrôle."),
+          t(
+            "Le serveur n'a pas renvoyé une liste valide de points de contrôle.",
+          ),
         );
       }
 
@@ -96,7 +100,10 @@ const Locations = () => {
       console.error(t("Erreur de chargement des points de contrôle :"), error);
 
       toast.error(
-        getErrorMessage(error, t("Impossible de charger les points de contrôle.")),
+        getErrorMessage(
+          error,
+          t("Impossible de charger les points de contrôle."),
+        ),
       );
     } finally {
       setLoading(false);
@@ -222,6 +229,7 @@ const Locations = () => {
     setSubmitting(true);
     setFormError("");
     let updatingStatus = false;
+    let newlyCreatedLocation = null;
 
     try {
       if (editingCheckpoint) {
@@ -238,12 +246,15 @@ const Locations = () => {
 
         toast.success(t("Point de contrôle modifié avec succès."));
       } else {
-        await locationsService.create(payload);
+        newlyCreatedLocation = await locationsService.create(payload);
         toast.success(t("Point de contrôle créé avec succès."));
       }
 
       setIsModalOpen(false);
       resetForm();
+      if (newlyCreatedLocation) {
+        setQrCheckpoint(newlyCreatedLocation);
+      }
 
       setLoading(true);
       await loadCheckpoints();
@@ -303,7 +314,10 @@ const Locations = () => {
       console.error(t("Erreur de suppression du point de contrôle :"), error);
 
       toast.error(
-        getErrorMessage(error, t("Impossible de supprimer ce point de contrôle.")),
+        getErrorMessage(
+          error,
+          t("Impossible de supprimer ce point de contrôle."),
+        ),
       );
     } finally {
       setDeleting(false);
@@ -378,6 +392,29 @@ const Locations = () => {
       align: "right",
       render: (row) => (
         <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setQrCheckpoint(row)}
+            className="text-gray-500 transition-colors hover:text-primary"
+            title={t("Afficher le QR code")}
+            aria-label={`${t("Afficher le QR code")} ${row.name}`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v2m-3 3h2m2 0v2m-6-4v3"
+              />
+            </svg>
+          </button>
           <button
             type="button"
             onClick={() => handleEdit(row)}
@@ -568,7 +605,8 @@ const Locations = () => {
                       </span>
 
                       <span className="text-xs text-text-secondary">
-                        {t("Code agent : ")}{agent.agentCode}
+                        {t("Code agent : ")}
+                        {agent.agentCode}
                       </span>
                     </button>
                   ))
@@ -662,6 +700,41 @@ const Locations = () => {
           {selectedCheckpoint?.checkpointCode ?? ""})?{" "}
           {t("Cette action est irréversible.")}
         </p>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(qrCheckpoint)}
+        onClose={() => setQrCheckpoint(null)}
+        title={t("QR code du point de contrôle")}
+        IconTitle={SignPost}
+        footer={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setQrCheckpoint(null)}
+          >
+            {t("Fermer")}
+          </Button>
+        }
+      >
+        {qrCheckpoint && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-sm text-text-secondary">
+              {t(
+                "Scannez ce QR code pour lire les données du point de contrôle.",
+              )}
+            </p>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <QRCode
+                value={JSON.stringify(qrCheckpoint)}
+                size={220}
+                level="M"
+                title={t("QR code du point de contrôle")}
+              />
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

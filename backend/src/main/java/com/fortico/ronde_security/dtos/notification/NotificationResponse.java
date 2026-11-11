@@ -7,7 +7,8 @@ public record NotificationResponse(
     String description,
     OffsetDateTime timestamp,
     String type,
-    String status
+    String status,
+    boolean read
 ) {
     
 }

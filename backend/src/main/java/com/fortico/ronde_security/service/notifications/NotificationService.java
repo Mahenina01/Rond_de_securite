@@ -7,6 +7,16 @@ import java.util.List;
 public interface NotificationService {
     NotificationResponse create(NotificationRequest request);
 
+    NotificationResponse createFromMqtt(
+        String title,
+        String description,
+        String type);
+
+    NotificationResponse createRejectedMqtt(
+        String title,
+        String description,
+        String type);
+
     List<NotificationResponse> findAll();
     NotificationResponse findById(Long id);
 
@@ -20,4 +30,6 @@ public interface NotificationService {
     
     List<NotificationResponse> searchByTitle(String title);
     NotificationResponse archive(Long id) ;
+
+    NotificationResponse updateReadStatus(Long id, boolean read);
 }

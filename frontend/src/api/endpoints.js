@@ -45,6 +45,7 @@ const endpoints = {
   notifications: {
     list: "/notifications",
     detail: (id) => `/notifications/${id}`,
+    read: (id) => `/notifications/${id}/read`,
     archive: (id) => `/notifications/${id}/archive`,
   },
 
