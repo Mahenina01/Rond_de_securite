@@ -361,6 +361,76 @@ namespace
 
 // API PUBLIQUE
 
+bool time_iso_to_epoch(const char *iso, int64_t *epochOut)
+{
+  if (iso == nullptr || epochOut == nullptr)
+    return false;
+
+  const size_t len = strlen(iso);
+
+  if ((len != 19 && len != 20) ||
+      (len == 20 && iso[19] != 'Z') ||
+      iso[4] != '-' || iso[7] != '-' ||
+      iso[10] != 'T' || iso[13] != ':' || iso[16] != ':')
+    return false;
+
+  for (size_t i = 0; i < 19; i++)
+  {
+    if (i != 4 && i != 7 && i != 10 && i != 13 && i != 16 &&
+        (iso[i] < '0' || iso[i] > '9'))
+      return false;
+  }
+
+  UtcTime utc;
+  utc.year = (iso[0] - '0') * 1000 + (iso[1] - '0') * 100 +
+             (iso[2] - '0') * 10 + (iso[3] - '0');
+  utc.month = (iso[5] - '0') * 10 + (iso[6] - '0');
+  utc.day = (iso[8] - '0') * 10 + (iso[9] - '0');
+  utc.hour = (iso[11] - '0') * 10 + (iso[12] - '0');
+  utc.minute = (iso[14] - '0') * 10 + (iso[15] - '0');
+  utc.second = (iso[17] - '0') * 10 + (iso[18] - '0');
+
+  if (utc.month < 1 || utc.month > 12 ||
+      utc.hour > 23 || utc.minute > 59 || utc.second > 59)
+    return false;
+
+  static const uint8_t daysInMonth[] = {31, 28, 31, 30, 31, 30,
+                                         31, 31, 30, 31, 30, 31};
+  const bool leapYear = (utc.year % 4 == 0) &&
+                        ((utc.year % 100 != 0) || (utc.year % 400 == 0));
+  const uint8_t maxDay = (utc.month == 2 && leapYear)
+                             ? 29
+                             : daysInMonth[utc.month - 1];
+
+  if (utc.day < 1 || utc.day > maxDay)
+    return false;
+
+  *epochOut = toEpoch(utc);
+  return true;
+}
+
+bool time_epoch_to_iso(int64_t epoch, char *out, size_t outLen)
+{
+  if (out == nullptr || outLen == 0)
+    return false;
+
+  out[0] = '\0';
+
+  const int64_t minEpoch = daysFromCivil(0, 1, 1) * 86400;
+  const int64_t maxEpoch = daysFromCivil(10000, 1, 1) * 86400;
+
+  if (outLen < 21 || epoch < minEpoch || epoch >= maxEpoch)
+    return false;
+
+  UtcTime utc = fromEpoch(epoch);
+
+  int written = snprintf(out, outLen, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+                         utc.year, utc.month, utc.day,
+                         utc.hour, utc.minute, utc.second);
+
+  return written == 20 && static_cast<size_t>(written) < outLen;
+}
+
 bool time_utc_iso_to_local(const char *utcIso, char *out, size_t outLen)
 {
   if (utcIso == nullptr || out == nullptr || outLen < TIME_LOCAL_STR_LEN)

@@ -36,6 +36,14 @@
 // Taille minimale du tampon de time_utc_iso_to_local().
 #define TIME_LOCAL_STR_LEN 32
 
+// Convertit une date UTC "AAAA-MM-JJTHH:MM:SS" (ou avec suffixe Z)
+// en secondes depuis l'epoch Unix.
+bool time_iso_to_epoch(const char *iso, int64_t *epochOut);
+
+// Convertit des secondes depuis l'epoch Unix en date ISO UTC terminée par Z.
+// Le tampon doit pouvoir contenir au moins 21 octets.
+bool time_epoch_to_iso(int64_t epoch, char *out, size_t outLen);
+
 // Convertit "2026-11-07T16:41:10Z" (UTC) en heure locale lisible :
 // "2026-11-07 19:41:10 (UTC+3)".
 bool time_utc_iso_to_local(const char *utcIso, char *out, size_t outLen);

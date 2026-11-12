@@ -153,7 +153,7 @@ const System = ({ hasLogo, logoUrl, onLogoUpdated }) => {
               type="button"
               onClick={() => setIsLanguageDialogOpen(true)}
               aria-label={t("Choisir la langue")}
-              className="cursor-pointer bg-transparent text-sm text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="text-sm bg-transparent cursor-pointer text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {language === "fr" ? "Français" : "English"}
             </button>
@@ -262,7 +262,7 @@ const System = ({ hasLogo, logoUrl, onLogoUpdated }) => {
               type="button"
               onClick={handleLogoSave}
               disabled={savingLogo}
-              className="mt-3 w-full rounded-lg bg-primary px-4 py-2 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full px-4 py-2 mt-3 font-semibold text-white transition rounded-lg bg-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {savingLogo
                 ? t("Enregistrement du logo...")

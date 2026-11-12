@@ -201,9 +201,7 @@ static bool recordScan(const char *agentId)
   return false;
 }
 
-// Lecture du badge, appelée à chaque tour de loop() quel que soit l'état
-// du réseau : les passages sont enregistrés même hors ligne.
-// RFID_IsCardPresent() attend au plus 100 ms un badge.
+// Lecture du badge, appelée quel que soit l'état du réseau : les passages sont enregistrés même hors ligne.
 static void handleRfid()
 {
   if (!rfidReady)
