@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <esp_partition.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "badge_map.h"
 #include "hal/buzzer.h"
@@ -12,6 +14,7 @@
 #include "pins_config.h"
 #include "system_config.h"
 #include "time_sync.h"
+#include "hal/rescue_button.h"
 
 // Commandes sur le moniteur série :
 //   'l' + Entrée : crée un log de test (agent AG001) avec l'heure du DS3231
@@ -101,6 +104,9 @@ static bool rtcReady = false;
 
 // false si le PN532 n'a pas été détecté
 static bool rfidReady = false;
+
+// Indique si la lecture RFID a pu être démarrée dans une tâche dédiée.
+static bool rfidTaskStarted = false;
 
 // Prochaine synchronisation de l'heure (comparaison insensible au
 // débordement de millis()).
@@ -358,6 +364,18 @@ static void handleSerialTestCommands()
 
 #endif
 
+// La lecture RFID reste active même lorsque la boucle réseau est bloquée.
+static void rfidTask(void *parameter)
+{
+  (void)parameter;
+
+  for (;;)
+  {
+    handleRfid();
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -438,6 +456,20 @@ void setup()
     Serial.println("[PASS] Lecteur RFID pret.");
   else
     Serial.println("[ERROR] Lecteur RFID indisponible : aucun passage ne sera lu.");
+
+  // La tâche est prioritaire sur loopTask pour continuer à lire les badges
+  // pendant les opérations réseau bloquantes.
+  rfidTaskStarted = xTaskCreatePinnedToCore(
+                        rfidTask,
+                        "rfid",
+                        4096,
+                        nullptr,
+                        2,
+                        nullptr,
+                        1) == pdPASS;
+
+  if (!rfidTaskStarted)
+    Serial.println("[ERROR] Impossible de demarrer la tache RFID.");
 }
 
 // ============================================================
@@ -446,8 +478,9 @@ void setup()
 
 void loop()
 {
-  // Les badges sont lus dans tous les états.
-  handleRfid();
+  // Repli si FreeRTOS n'a pas pu créer la tâche dédiée.
+  if (!rfidTaskStarted)
+    handleRfid();
 
 #if ENABLE_SERIAL_TEST_LOG
   handleSerialTestCommands();
