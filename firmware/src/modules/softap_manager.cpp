@@ -38,6 +38,7 @@ namespace
 
   bool g_active = false;
   bool g_routesRegistered = false;
+  bool g_restartRequested = false;
 
   // Session
   char g_sessionToken[33] = {0};
@@ -269,7 +270,7 @@ namespace
     snprintf(buf, sizeof(buf),
              "<html><body><h1>%s</h1><p>Fichier %s absent de LittleFS. "
              "Envoyez le dossier data/ avec : pio run -t uploadfs</p></body></html>",
-             DEVICE_ID, name);
+             config_device_id(), name);
 
     server.send(200, "text/html", buf);
   }
@@ -364,7 +365,10 @@ namespace
       return;
     }
 
-    server.sendHeader("Content-Disposition", "attachment; filename=\"logs-" DEVICE_ID ".csv\"");
+    char disposition[80];
+    snprintf(disposition, sizeof(disposition), "attachment; filename=\"logs-%s.csv\"",
+             config_device_id());
+    server.sendHeader("Content-Disposition", disposition);
     server.streamFile(f, "text/csv");
     f.close();
   }
@@ -411,7 +415,7 @@ namespace
              "\"sync\":{\"kind\":\"%s\",\"state\":\"%s\",\"ageSec\":%u},"
              "\"defaultPwd\":%s,\"badges\":%u,\"badgeMax\":%d,"
              "\"lastUid\":\"%s\",\"lastKnown\":%s,\"lastAgeSec\":%lu}",
-             DEVICE_ID, FIRMWARE_VERSION, rtcValid ? "true" : "false", rtcValid ? utc : "", LOCAL_UTC_OFFSET_MINUTES,
+             config_device_id(), FIRMWARE_VERSION, rtcValid ? "true" : "false", rtcValid ? utc : "", LOCAL_UTC_OFFSET_MINUTES,
              batteryPct, static_cast<unsigned long>(mv),
              g_status.internetUp ? "true" : "false", g_status.mqttConnected ? "true" : "false", g_status.state,
              fsPct, static_cast<unsigned long>(used / 1024), static_cast<unsigned long>(total / 1024),
@@ -434,6 +438,10 @@ namespace
     uint32_t unknownTime = 0;
     uint32_t days[7] = {0};
   };
+
+  constexpr size_t LOG_STATUS_OFFSET =
+      LOG_FIELD_TIMESTAMP_LEN + 1 + LOG_FIELD_AGENT_LEN + 1 +
+      LOG_FIELD_CHECKPOINT_LEN + 1;
 
   // Une seule lecture du fichier : compteurs par statut + passages des 7
   // derniers jours (jours LOCAUX).
@@ -465,7 +473,7 @@ namespace
 
         st.total++;
 
-        char status = static_cast<char>(line[42]);
+        char status = static_cast<char>(line[LOG_STATUS_OFFSET]);
 
         if (status == LOG_STATUS_PENDING)
           st.pending++;
@@ -595,7 +603,7 @@ namespace
         sanitizeField(line + 21, LOG_FIELD_AGENT_LEN, agent);
         sanitizeField(line + 27, LOG_FIELD_CHECKPOINT_LEN, checkpoint);
 
-        char status = static_cast<char>(line[42]);
+        char status = static_cast<char>(line[LOG_STATUS_OFFSET]);
 
         if (status != LOG_STATUS_PENDING && status != LOG_STATUS_SENT && status != LOG_STATUS_FAILED)
           status = '?';
@@ -713,6 +721,34 @@ namespace
   }
 
   // API : MOT DE PASSE
+
+  void handleApiDeviceId()
+  {
+    if (!apiAuth())
+      return;
+
+    String deviceId = server.arg("deviceId");
+    if (!config_device_id_valid(deviceId.c_str()))
+    {
+      sendError(400, "invalid_device_id");
+      return;
+    }
+
+    if (strcmp(deviceId.c_str(), config_device_id()) == 0)
+    {
+      sendJson(200, "{\"ok\":true,\"changed\":false}");
+      return;
+    }
+
+    if (!config_set_device_id(deviceId.c_str()))
+    {
+      sendError(500, "storage");
+      return;
+    }
+
+    sendJson(200, "{\"ok\":true,\"changed\":true}");
+    g_restartRequested = true;
+  }
 
   void handleApiPassword()
   {
@@ -876,6 +912,8 @@ namespace
     server.on("/api/logs", HTTP_GET, handleApiLogs);
     server.on("/api/logs/clear", HTTP_POST, handleApiLogsClear);
 
+    server.on("/api/device-id", HTTP_POST, handleApiDeviceId);
+
     server.on("/api/badges", HTTP_GET, handleApiBadges);
     server.on("/api/badges/add", HTTP_POST, handleApiBadgeAdd);
     server.on("/api/badges/update", HTTP_POST, handleApiBadgeUpdate);
@@ -956,6 +994,12 @@ void softap_loop()
 #endif
 
   server.handleClient();
+
+  if (g_restartRequested)
+  {
+    delay(1000);
+    ESP.restart();
+  }
 }
 
 void softap_stop()

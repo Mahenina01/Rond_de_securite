@@ -21,8 +21,30 @@ namespace
 
   char g_salt[33] = {0};
   char g_hash[65] = {0};
+  char g_deviceId[DEVICE_ID_MAX_LEN + 1] = DEVICE_ID;
   bool g_autoTime = true;
   bool g_ready = false;
+
+  bool validDeviceId(const char *deviceId)
+  {
+    if (deviceId == nullptr)
+      return false;
+
+    size_t len = strlen(deviceId);
+    if (len == 0 || len > DEVICE_ID_MAX_LEN)
+      return false;
+
+    for (size_t i = 0; i < len; i++)
+    {
+      char c = deviceId[i];
+      if (!((c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            c == '-' || c == '_'))
+        return false;
+    }
+
+    return true;
+  }
 
   void sha256Hex(const char *input, char *outHex)
   {
@@ -95,6 +117,12 @@ void config_init(void)
   prefs.getString("pwhash", g_hash, sizeof(g_hash));
 
   g_autoTime = prefs.getBool("autotime", true);
+
+  String storedDeviceId = prefs.getString("deviceid", DEVICE_ID);
+  if (validDeviceId(storedDeviceId.c_str()))
+    snprintf(g_deviceId, sizeof(g_deviceId), "%s", storedDeviceId.c_str());
+  else
+    snprintf(g_deviceId, sizeof(g_deviceId), "%s", DEVICE_ID);
 
   g_ready = true;
 }
@@ -177,4 +205,32 @@ void config_set_auto_time_sync(bool enabled)
   g_autoTime = enabled;
 
   prefs.putBool("autotime", enabled);
+}
+
+const char *config_device_id(void)
+{
+  if (!g_ready)
+    config_init();
+
+  return g_deviceId;
+}
+
+bool config_device_id_valid(const char *device_id)
+{
+  return validDeviceId(device_id);
+}
+
+bool config_set_device_id(const char *device_id)
+{
+  if (!g_ready)
+    config_init();
+
+  if (!config_device_id_valid(device_id))
+    return false;
+
+  if (prefs.putString("deviceid", device_id) == 0)
+    return false;
+
+  snprintf(g_deviceId, sizeof(g_deviceId), "%s", device_id);
+  return true;
 }

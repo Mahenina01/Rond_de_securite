@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <freertos/FreeRTOS.h>
 
 #include "hal/mqtt_manager.h"
 #include "log_format.h"
@@ -55,6 +56,8 @@ namespace
   uint32_t nextRequeueMs = 0;
 
   bool scanRequested = true;
+  portMUX_TYPE requestMux = portMUX_INITIALIZER_UNLOCKED;
+  bool externalScanRequested = false;
 
   // Purge : logs ENVOYE accumulés depuis la dernière purge. La première
   // purge est faite au démarrage pour nettoyer les restes d'une session
@@ -288,7 +291,9 @@ namespace
 
 void log_sync_request()
 {
-  scanRequested = true;
+  portENTER_CRITICAL(&requestMux);
+  externalScanRequested = true;
+  portEXIT_CRITICAL(&requestMux);
 }
 
 void log_sync_reset()
@@ -310,6 +315,14 @@ bool log_sync_busy()
 
 void log_sync_process()
 {
+  portENTER_CRITICAL(&requestMux);
+  const bool scanRequestedExternally = externalScanRequested;
+  externalScanRequested = false;
+  portEXIT_CRITICAL(&requestMux);
+
+  if (scanRequestedExternally)
+    scanRequested = true;
+
   if (state == SyncState::WAIT_ACK)
   {
     handleWaitAck();

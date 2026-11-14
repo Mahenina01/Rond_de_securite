@@ -361,74 +361,63 @@ namespace
 
 // API PUBLIQUE
 
-bool time_iso_to_epoch(const char *iso, int64_t *epochOut)
+namespace
 {
-  if (iso == nullptr || epochOut == nullptr)
-    return false;
 
-  const size_t len = strlen(iso);
-
-  if ((len != 19 && len != 20) ||
-      (len == 20 && iso[19] != 'Z') ||
-      iso[4] != '-' || iso[7] != '-' ||
-      iso[10] != 'T' || iso[13] != ':' || iso[16] != ':')
-    return false;
-
-  for (size_t i = 0; i < 19; i++)
+  // Lit exactement `count` chiffres.
+  bool readDigits(const char *p, int count, int *value)
   {
-    if (i != 4 && i != 7 && i != 10 && i != 13 && i != 16 &&
-        (iso[i] < '0' || iso[i] > '9'))
-      return false;
+    int v = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+      if (p[i] < '0' || p[i] > '9')
+        return false;
+
+      v = v * 10 + (p[i] - '0');
+    }
+
+    *value = v;
+
+    return true;
   }
 
-  UtcTime utc;
-  utc.year = (iso[0] - '0') * 1000 + (iso[1] - '0') * 100 +
-             (iso[2] - '0') * 10 + (iso[3] - '0');
-  utc.month = (iso[5] - '0') * 10 + (iso[6] - '0');
-  utc.day = (iso[8] - '0') * 10 + (iso[9] - '0');
-  utc.hour = (iso[11] - '0') * 10 + (iso[12] - '0');
-  utc.minute = (iso[14] - '0') * 10 + (iso[15] - '0');
-  utc.second = (iso[17] - '0') * 10 + (iso[18] - '0');
+} // namespace
 
-  if (utc.month < 1 || utc.month > 12 ||
-      utc.hour > 23 || utc.minute > 59 || utc.second > 59)
+bool time_iso_to_epoch(const char *iso, int64_t *epoch)
+{
+  if (iso == nullptr || epoch == nullptr)
     return false;
 
-  static const uint8_t daysInMonth[] = {31, 28, 31, 30, 31, 30,
-                                         31, 31, 30, 31, 30, 31};
-  const bool leapYear = (utc.year % 4 == 0) &&
-                        ((utc.year % 100 != 0) || (utc.year % 400 == 0));
-  const uint8_t maxDay = (utc.month == 2 && leapYear)
-                             ? 29
-                             : daysInMonth[utc.month - 1];
+  UtcTime t;
 
-  if (utc.day < 1 || utc.day > maxDay)
+  // AAAA-MM-JJTHH:MM:SS
+  if (!readDigits(iso, 4, &t.year) || iso[4] != '-' ||
+      !readDigits(iso + 5, 2, &t.month) || iso[7] != '-' ||
+      !readDigits(iso + 8, 2, &t.day) || (iso[10] != 'T' && iso[10] != ' ') ||
+      !readDigits(iso + 11, 2, &t.hour) || iso[13] != ':' ||
+      !readDigits(iso + 14, 2, &t.minute) || iso[16] != ':' ||
+      !readDigits(iso + 17, 2, &t.second))
     return false;
 
-  *epochOut = toEpoch(utc);
+  if (iso[19] != '\0' && !(iso[19] == 'Z' && iso[20] == '\0'))
+    return false;
+
+  if (t.month < 1 || t.month > 12 || t.day < 1 || t.day > 31 ||
+      t.hour > 23 || t.minute > 59 || t.second > 59)
+    return false;
+
+  *epoch = toEpoch(t);
+
   return true;
 }
 
-bool time_epoch_to_iso(int64_t epoch, char *out, size_t outLen)
+void time_epoch_to_iso(int64_t epoch, char *out, size_t outLen)
 {
-  if (out == nullptr || outLen == 0)
-    return false;
+  if (out == nullptr || outLen < 21)
+    return;
 
-  out[0] = '\0';
-
-  const int64_t minEpoch = daysFromCivil(0, 1, 1) * 86400;
-  const int64_t maxEpoch = daysFromCivil(10000, 1, 1) * 86400;
-
-  if (outLen < 21 || epoch < minEpoch || epoch >= maxEpoch)
-    return false;
-
-  UtcTime utc = fromEpoch(epoch);
-
-  int written = snprintf(out, outLen, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-                         utc.year, utc.month, utc.day,
-                         utc.hour, utc.minute, utc.second);
-
-  return written == 20 && static_cast<size_t>(written) < outLen;
+  formatIso(fromEpoch(epoch), out, outLen);
 }
 
 bool time_utc_iso_to_local(const char *utcIso, char *out, size_t outLen)

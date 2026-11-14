@@ -5,16 +5,18 @@
 
 #include "badge_map.h"
 #include "hal/buzzer.h"
-#include "hal/sim_manager.h"
+#include "config_store.h"
 #include "hal/mqtt_manager.h"
+#include "hal/rescue_button.h"
 #include "hal/rfid_pn532.h"
 #include "hal/rtc_ds3231.h"
+#include "hal/sim_manager.h"
+#include "hal/softap_manager.h"
 #include "log_format.h"
 #include "log_sync.h"
 #include "pins_config.h"
 #include "system_config.h"
 #include "time_sync.h"
-#include "hal/rescue_button.h"
 
 // Commandes sur le moniteur série :
 //   'l' + Entrée : crée un log de test (agent AG001) avec l'heure du DS3231
@@ -23,6 +25,7 @@
 //   'b' + Entrée : fait sonner le buzzer ("pip! pip!")
 //   'T' + Entrée : force une resynchronisation de l'heure avec le réseau
 //   'C' + Entrée : EFFACE tous les logs (majuscule, pour éviter une erreur)
+//   'W' + Entrée : démarre / arrête le mode secours Wi-Fi (comme le bouton GPIO25)
 // À mettre à 0 une fois les tests terminés (la lecture RFID reste active).
 #define ENABLE_SERIAL_TEST_LOG 1
 
@@ -63,7 +66,7 @@ enum class SystemState
   ERROR_STATE
 };
 
-static SystemState systemState = SystemState::START_MODEM;
+static volatile SystemState systemState = SystemState::START_MODEM;
 
 static uint32_t lastStatusMessage = 0;
 
@@ -105,16 +108,61 @@ static bool rtcReady = false;
 // false si le PN532 n'a pas été détecté
 static bool rfidReady = false;
 
-// Indique si la lecture RFID a pu être démarrée dans une tâche dédiée.
-static bool rfidTaskStarted = false;
-
 // Prochaine synchronisation de l'heure (comparaison insensible au
 // débordement de millis()).
 static uint32_t nextClockSyncMs = 0;
 
+// Mode secours : point d'accès Wi-Fi + tableau de bord web. Pendant ce temps,
+// les opérations réseau BLOQUANTES (reconnexion MQTT, synchronisation
+// automatique de l'heure) sont suspendues pour que l'interface reste réactive.
+static volatile bool rescueActive = false;
+static volatile bool rescuePauseRequested = false;
+static volatile bool rfidTaskPaused = false;
+static volatile bool networkTaskPaused = false;
+static portMUX_TYPE serialCommandMux = portMUX_INITIALIZER_UNLOCKED;
+static bool serialClockSyncRequested = false;
+static bool serialClearLogsRequested = false;
+static bool rescueStartPending = false;
+static uint32_t lastSoftApStatusMs = 0;
+
+// Synchronisation de l'heure demandée depuis le tableau de bord.
+static bool forcedClockSync = false;
+
 // Dernier badge lu (anti-rebond)
 static char lastUid[RFID_UID_MAX_STR_LEN] = "";
 static uint32_t lastUidMs = 0;
+
+static void queueSerialClockSync()
+{
+  portENTER_CRITICAL(&serialCommandMux);
+  serialClockSyncRequested = true;
+  portEXIT_CRITICAL(&serialCommandMux);
+}
+
+static void queueSerialClearLogs()
+{
+  portENTER_CRITICAL(&serialCommandMux);
+  serialClearLogsRequested = true;
+  portEXIT_CRITICAL(&serialCommandMux);
+}
+
+static bool takeSerialClockSyncRequest()
+{
+  portENTER_CRITICAL(&serialCommandMux);
+  const bool requested = serialClockSyncRequested;
+  serialClockSyncRequested = false;
+  portEXIT_CRITICAL(&serialCommandMux);
+  return requested;
+}
+
+static bool takeSerialClearLogsRequest()
+{
+  portENTER_CRITICAL(&serialCommandMux);
+  const bool requested = serialClearLogsRequested;
+  serialClearLogsRequested = false;
+  portEXIT_CRITICAL(&serialCommandMux);
+  return requested;
+}
 
 // Liste les partitions de la flash. Sert à diagnostiquer un échec de
 // montage : LittleFS cherche la partition
@@ -143,6 +191,175 @@ static void printPartitions()
   }
 
   esp_partition_iterator_release(it);
+}
+
+// ============================================================
+// MODE SECOURS (point d'accès Wi-Fi + tableau de bord)
+// ============================================================
+
+// Le modem a-t-il une connexion Internet ? (déduit de l'état de la machine ;
+// aucune commande envoyée au modem, donc sans risque pendant une session MQTT)
+static bool internetUp()
+{
+  switch (systemState)
+  {
+  case SystemState::SYNC_TIME:
+  case SystemState::INIT_MQTT:
+  case SystemState::CONNECT_MQTT:
+  case SystemState::RUNNING:
+    return true;
+  default:
+    return false;
+  }
+}
+
+// Code court de l'état réseau, traduit par le tableau de bord.
+static const char *stateCode()
+{
+  switch (systemState)
+  {
+  case SystemState::START_MODEM:
+    return "modem_start";
+  case SystemState::INIT_MODEM:
+    return "modem_init";
+  case SystemState::CONNECT_NETWORK:
+    return "network";
+  case SystemState::CONNECT_INTERNET:
+    return "internet";
+  case SystemState::SYNC_TIME:
+    return "time";
+  case SystemState::INIT_MQTT:
+    return "mqtt_init";
+  case SystemState::CONNECT_MQTT:
+    return "mqtt_connect";
+  case SystemState::RUNNING:
+    return "running";
+  default:
+    return "error";
+  }
+}
+
+static void publishSoftApStatus()
+{
+  SoftApStatus status;
+
+  status.internetUp = internetUp();
+  status.mqttConnected = mqtt_is_connected();
+  status.state = stateCode();
+
+  softap_update_status(status);
+}
+
+static void startRescue()
+{
+  if (rescueActive || rescueStartPending)
+    return;
+
+  Serial.println("[WEB] Pause des taches RFID et SIM/MQTT...");
+  rescuePauseRequested = true;
+  rescueStartPending = true;
+}
+
+static void stopRescue()
+{
+  if (!rescueActive && !rescueStartPending)
+    return;
+
+  const bool wasActive = rescueActive;
+
+  if (wasActive)
+    softap_stop();
+
+  rescueActive = false;
+  rescueStartPending = false;
+
+  // Reprise normale du réseau.
+  mqttDown = false;
+  nextMqttAttemptMs = 0;
+
+  if (wasActive)
+    Serial.println("[WEB] Mode secours arrete.");
+  else
+    Serial.println("[WEB] Demarrage du mode secours annule.");
+
+  buzzer_beep(600);
+  rescuePauseRequested = false;
+}
+
+// Synchronisation de l'heure demandée depuis le tableau de bord.
+static void requestForcedTimeSync()
+{
+  if (!rtcReady || !internetUp())
+  {
+    softap_report_time_sync(false);
+    return;
+  }
+
+  Serial.println("[WEB] Synchronisation de l'heure demandee.");
+
+  // MQTT est coupé proprement avant de parler directement au modem.
+  if (mqtt_is_connected())
+    mqtt_disconnect();
+
+  forcedClockSync = true;
+  systemState = SystemState::SYNC_TIME;
+}
+
+static void handleRescue()
+{
+  if (rescueStartPending)
+  {
+    if (!rfidTaskPaused || !networkTaskPaused)
+      return;
+
+    Serial.println("[WEB] Mode secours : demarrage du point d'acces...");
+    softap_start();
+    rescueActive = softap_is_active();
+    rescueStartPending = false;
+
+    if (!rescueActive)
+    {
+      Serial.println("[ERROR] Impossible de demarrer le point d'acces secours.");
+      rescuePauseRequested = false;
+      return;
+    }
+
+    publishSoftApStatus();
+    lastSoftApStatusMs = millis();
+
+    // 3 bips courts : mode secours actif.
+    for (int i = 0; i < 3; i++)
+    {
+      buzzer_beep(120);
+      delay(100);
+    }
+  }
+
+  if (!rescueActive)
+    return;
+
+  // Plusieurs passages : une page web ouvre plusieurs connexions à la fois.
+  for (int i = 0; i < 3; i++)
+  {
+    softap_loop();
+    yield();
+  }
+
+  if (softap_expired())
+  {
+    Serial.println("[WEB] Inactivite : arret du mode secours.");
+    stopRescue();
+    return;
+  }
+
+  if (millis() - lastSoftApStatusMs >= 1000)
+  {
+    lastSoftApStatusMs = millis();
+    publishSoftApStatus();
+  }
+
+  if (softap_take_time_sync_request())
+    requestForcedTimeSync();
 }
 
 // ============================================================
@@ -207,7 +424,8 @@ static bool recordScan(const char *agentId)
   return false;
 }
 
-// Lecture du badge, appelée quel que soit l'état du réseau : les passages sont enregistrés même hors ligne.
+// Lecture du badge, appelée par la tâche RFID hors du mode secours.
+// RFID_IsCardPresent() attend au plus 100 ms un badge.
 static void handleRfid()
 {
   if (!rfidReady)
@@ -240,19 +458,34 @@ static void handleRfid()
 
   char agentId[LOG_FIELD_AGENT_LEN + 1];
 
+  // Badge présent dans la liste gérée depuis le tableau de bord ?
   bool known = badge_agent_id(uid, agentId);
+
+  // Mémorisé pour le tableau de bord ("Dernier badge présenté").
+  badges_note_scan(uid, known);
 
   if (!known)
   {
-    Serial.print("[RFID] Badge inconnu, agent note : ");
-    Serial.println(agentId);
+    Serial.print("[RFID] Badge inconnu : acces refuse (UID ");
+    Serial.print(uid);
+    Serial.println(").");
+
+#if LOG_UNKNOWN_BADGES
+    recordScan(agentId);
+#endif
+
+#if BUZZER_SIGNAL_ERRORS
+    buzzer_error();
+#endif
+
+    return;
   }
 
   bool stored = recordScan(agentId);
 
-  // "pip! pip!" : badge connu ET passage enregistré.
-  // Bip long : badge inconnu (enregistré quand même) ou enregistrement raté.
-  if (known && stored)
+  // "pip! pip!" : badge autorisé ET passage enregistré.
+  // Bip long : enregistrement raté.
+  if (stored)
     buzzer_valid();
 #if BUZZER_SIGNAL_ERRORS
   else
@@ -351,30 +584,48 @@ static void handleSerialTestCommands()
     }
     else if (c == 'T')
     {
-      // Traité en état RUNNING, quand aucun envoi n'est en cours.
       Serial.println("[TEST] Resynchronisation de l'heure demandee.");
-      nextClockSyncMs = millis();
+      queueSerialClockSync();
     }
     else if (c == 'C')
     {
-      clearAllLogs();
+      if (rescueActive)
+        clearAllLogs();
+      else
+        queueSerialClearLogs();
+    }
+    else if (c == 'W')
+    {
+      if (rescueActive || rescueStartPending)
+        stopRescue();
+      else
+        startRescue();
     }
   }
 }
 
 #endif
 
-// La lecture RFID reste active même lorsque la boucle réseau est bloquée.
 static void rfidTask(void *parameter)
 {
   (void)parameter;
 
   for (;;)
   {
+    if (rescuePauseRequested)
+    {
+      rfidTaskPaused = true;
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    rfidTaskPaused = false;
     handleRfid();
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
+
+static void networkTask(void *parameter);
 
 // ============================================================
 // INITIALISATION
@@ -397,9 +648,6 @@ void setup()
   Serial.print("[INFO] Firmware : ");
   Serial.println(FIRMWARE_VERSION);
 
-  Serial.print("[INFO] Device ID : ");
-  Serial.println(DEVICE_ID);
-
   // Les logs sont enregistrés localement même sans réseau.
   storageReady = storage_init();
 
@@ -414,6 +662,27 @@ void setup()
 
     printPartitions();
   }
+
+  // Réglages persistants (mot de passe du tableau de bord) et liste des badges.
+  config_init();
+  Serial.print("[INFO] Device ID : ");
+  Serial.println(config_device_id());
+
+  if (storageReady)
+  {
+    if (badges_init())
+    {
+      Serial.print("[PASS] Badges autorises : ");
+      Serial.println(static_cast<unsigned int>(badges_count()));
+    }
+    else
+    {
+      Serial.println("[ERROR] Liste des badges illisible.");
+    }
+  }
+
+  // Bouton du mode secours (appui long).
+  rescue_button_init();
 
   // Horloge DS3231 (I2C). Le driver utilise les broches I2C par défaut de
   // l'ESP32 (SDA=21, SCL=22), identiques à pins_config.h.
@@ -457,34 +726,57 @@ void setup()
   else
     Serial.println("[ERROR] Lecteur RFID indisponible : aucun passage ne sera lu.");
 
-  // La tâche est prioritaire sur loopTask pour continuer à lire les badges
-  // pendant les opérations réseau bloquantes.
-  rfidTaskStarted = xTaskCreatePinnedToCore(
-                        rfidTask,
-                        "rfid",
-                        4096,
-                        nullptr,
-                        2,
-                        nullptr,
-                        1) == pdPASS;
-
-  if (!rfidTaskStarted)
+  if (xTaskCreatePinnedToCore(
+          rfidTask,
+          "rfid",
+          4096,
+          nullptr,
+          2,
+          nullptr,
+          1) != pdPASS)
+  {
+    rfidTaskPaused = true;
     Serial.println("[ERROR] Impossible de demarrer la tache RFID.");
+  }
+
+  if (xTaskCreatePinnedToCore(
+          networkTask,
+          "sim_mqtt",
+          8192,
+          nullptr,
+          1,
+          nullptr,
+          0) != pdPASS)
+  {
+    networkTaskPaused = true;
+    Serial.println("[ERROR] Impossible de demarrer la tache SIM/MQTT.");
+  }
 }
 
 // ============================================================
 // BOUCLE PRINCIPALE
 // ============================================================
 
-void loop()
+static void networkTask(void *parameter)
 {
-  // Repli si FreeRTOS n'a pas pu créer la tâche dédiée.
-  if (!rfidTaskStarted)
-    handleRfid();
+  (void)parameter;
 
-#if ENABLE_SERIAL_TEST_LOG
-  handleSerialTestCommands();
-#endif
+  for (;;)
+  {
+    if (rescuePauseRequested)
+    {
+      networkTaskPaused = true;
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+
+    networkTaskPaused = false;
+
+    if (takeSerialClearLogsRequest())
+      clearAllLogs();
+
+    if (takeSerialClockSyncRequest())
+      requestForcedTimeSync();
 
   switch (systemState)
   {
@@ -562,21 +854,44 @@ void loop()
     // Un échec n'empêche pas la suite : le DS3231 garde son heure.
   case SystemState::SYNC_TIME:
 
+    // Mode secours : réseau en pause, sauf synchronisation demandée.
+    if (rescueActive && !forcedClockSync)
+      break;
+
     if (rtcReady)
     {
-      if (time_sync_from_network())
-      {
-        Serial.println("[PASS] Heure synchronisee.");
+      // Synchronisation si elle est demandée, si le mode automatique est
+      // activé, ou si le DS3231 n'a pas d'heure valide (pile vide).
+      bool wanted = forcedClockSync || config_auto_time_sync() || !rtc_is_valid();
 
-        nextClockSyncMs = millis() + CLOCK_RESYNC_INTERVAL_MS;
+      if (wanted)
+      {
+        bool ok = time_sync_from_network();
+
+        softap_report_time_sync(ok);
+
+        if (ok)
+        {
+          Serial.println("[PASS] Heure synchronisee.");
+
+          nextClockSyncMs = millis() + CLOCK_RESYNC_INTERVAL_MS;
+        }
+        else
+        {
+          Serial.println("[WARN] Heure non synchronisee : DS3231 conserve.");
+
+          nextClockSyncMs = millis() + CLOCK_RETRY_INTERVAL_MS;
+        }
       }
       else
       {
-        Serial.println("[WARN] Heure non synchronisee : DS3231 conserve.");
+        Serial.println("[TIME] Synchronisation automatique desactivee : DS3231 conserve.");
 
-        nextClockSyncMs = millis() + CLOCK_RETRY_INTERVAL_MS;
+        nextClockSyncMs = millis() + CLOCK_RESYNC_INTERVAL_MS;
       }
     }
+
+    forcedClockSync = false;
 
     systemState = SystemState::INIT_MQTT;
 
@@ -607,6 +922,10 @@ void loop()
     // 7. CONNEXION HIVEMQ
     // --------------------------------------------------------
   case SystemState::CONNECT_MQTT:
+
+    // Mode secours : la connexion (bloquante) attend la fin du mode secours.
+    if (rescueActive)
+      break;
 
     // Attente non bloquante entre deux tentatives.
     if (static_cast<int32_t>(millis() - nextMqttAttemptMs) < 0)
@@ -666,7 +985,9 @@ void loop()
     // tourner dans une tâche FreeRTOS séparée.
   case SystemState::RUNNING:
 
-    mqtt_maintain();
+    // Pendant le mode secours, on ne tente pas de reconnexion (bloquante).
+    if (!rescueActive || mqtt_is_connected())
+      mqtt_maintain();
 
     if (mqtt_is_connected())
     {
@@ -679,7 +1000,7 @@ void loop()
       // Resynchronisation de l'heure (périodique, ou demandée par 'T').
       // MQTT est coupé proprement le temps de la synchronisation : on ne
       // parle jamais au modem en direct pendant une session MQTT.
-      if (rtcReady && !log_sync_busy() &&
+      if (rtcReady && !rescueActive && config_auto_time_sync() && !log_sync_busy() &&
           static_cast<int32_t>(millis() - nextClockSyncMs) >= 0)
       {
         Serial.println("[TIME] Resynchronisation : deconnexion MQTT temporaire.");
@@ -724,8 +1045,9 @@ void loop()
         }
       }
 
-      // Coupure trop longue : redémarrage complet du modem.
-      if (millis() - mqttDownSinceMs >= NETWORK_GLOBAL_TIMEOUT_MS)
+      // Coupure trop longue : redémarrage complet du modem (pas pendant
+      // le mode secours, où le réseau est volontairement en pause).
+      if (!rescueActive && millis() - mqttDownSinceMs >= NETWORK_GLOBAL_TIMEOUT_MS)
       {
         Serial.println("[ERROR] MQTT indisponible trop longtemps.");
 
@@ -801,6 +1123,28 @@ void loop()
 
     break;
   }
+
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+void loop()
+{
+  // Maintenir le bouton GPIO25 pendant 5 s pour démarrer ou arrêter le mode secours.
+  if (rescue_button_long_press())
+  {
+    if (rescueActive || rescueStartPending)
+      stopRescue();
+    else
+      startRescue();
+  }
+
+  if (rescueActive || rescueStartPending)
+    handleRescue();
+
+#if ENABLE_SERIAL_TEST_LOG
+  handleSerialTestCommands();
+#endif
 
   delay(5);
 }

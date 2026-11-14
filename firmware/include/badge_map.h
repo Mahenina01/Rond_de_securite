@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "badge_store.h"
 #include "log_format.h" // LOG_FIELD_AGENT_LEN
 
 // Identifiant du point de contrôle où ce boîtier est installé
@@ -12,38 +13,24 @@
 #define CHECKPOINT_ID "CHECKPOINT_001"
 #endif
 
-// Table des badges : UID en hexadécimal MAJUSCULE (tel qu'affiché par le
-// boîtier dans la ligne "[RFID] UID lu : ...") -> identifiant de l'agent
-// (5 caractères au maximum, imposé par le format des logs).
-//
-// À REMPLACER par vos vrais badges.
-struct BadgeEntry
-{
-  const char *uid;
-  const char *agentId;
-};
+// Un badge inconnu est-il enregistré dans les logs ?
+//   0 (défaut) : accès refusé, rien n'est enregistré, bip long.
+//   1          : le passage est enregistré avec les 5 derniers caractères de
+//                l'UID comme identifiant d'agent (pour repérer le badge).
+#ifndef LOG_UNKNOWN_BADGES
+#define LOG_UNKNOWN_BADGES 0
+#endif
 
-static const BadgeEntry BADGES[] = {
-    {"9151E206", "AG001"},
-    {"04D4E5F6", "AG002"},
-};
-
-// Renvoie true si le badge est connu et copie son identifiant dans `out`
-// (taille LOG_FIELD_AGENT_LEN + 1).
+// Renvoie true si le badge est dans la liste des badges autorisés (gérée
+// depuis le tableau de bord) et copie alors l'identifiant de l'agent dans
+// `out` (LOG_FIELD_AGENT_LEN + 1 octets).
 //
 // Badge inconnu : renvoie false et met dans `out` les 5 derniers caractères
-// de l'UID, pour que le serveur puisse tout de même repérer le badge.
+// de l'UID (utilisés seulement si LOG_UNKNOWN_BADGES vaut 1).
 inline bool badge_agent_id(const char *uid, char *out)
 {
-  for (size_t i = 0; i < sizeof(BADGES) / sizeof(BADGES[0]); i++)
-  {
-    if (strcmp(uid, BADGES[i].uid) == 0)
-    {
-      strncpy(out, BADGES[i].agentId, LOG_FIELD_AGENT_LEN);
-      out[LOG_FIELD_AGENT_LEN] = '\0';
-      return true;
-    }
-  }
+  if (badges_find(uid, out))
+    return true;
 
   size_t len = strlen(uid);
   const char *tail = (len > LOG_FIELD_AGENT_LEN) ? uid + (len - LOG_FIELD_AGENT_LEN) : uid;

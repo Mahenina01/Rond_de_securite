@@ -26,7 +26,7 @@
 #define MQTT_BROKER_PORT 8883
 #define MQTT_USER "ronde_security"
 #define MQTT_PASS "selesy20"
-#define MQTT_CLIENT_ID "RONDE-PN-01"
+#define MQTT_CLIENT_ID_FMT "RONDE-%s"
 
 #define MQTT_CLIENT_INDEX 0
 #define MQTT_SSL_CONTEXT 0
@@ -76,7 +76,7 @@
 
 #define AP_WIFI_PASSWORD "Admin123"
 
-#define RESCUE_BUTTON_HOLD_MS 3000
+#define RESCUE_BUTTON_HOLD_MS 5000
 
 #define RESCUE_AUTO_OFF_MS (5 * 60 * 1000)
 

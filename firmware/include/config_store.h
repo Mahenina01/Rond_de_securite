@@ -9,6 +9,7 @@
 
 #define PASSWORD_MIN_LEN 8
 #define PASSWORD_MAX_LEN 64
+#define DEVICE_ID_MAX_LEN 24
 
 // À appeler une fois au démarrage.
 void config_init(void);
@@ -23,5 +24,11 @@ bool config_password_is_default(void);
 // Synchronisation automatique de l'heure par le réseau mobile (par défaut : oui).
 bool config_auto_time_sync(void);
 void config_set_auto_time_sync(bool enabled);
+
+// Identifiant du boîtier utilisé par les topics et le client MQTT.
+// Caractères autorisés : A-Z, 0-9, tiret et souligné.
+const char *config_device_id(void);
+bool config_device_id_valid(const char *device_id);
+bool config_set_device_id(const char *device_id);
 
 #endif

@@ -1,0 +1,2841 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#00A88F" />
+    <title>Pointeuse — Tableau de bord</title>
+    <style>
+      /* Palette (reprise de la configuration Tailwind demandée) */
+      :root {
+        --primary: #00a88f;
+        --primary-hover: #008f7a;
+        --primary-light: #007f70;
+        --primary-outline: #00a88f;
+        --primary-waiting: #008f7a;
+        --secondary: #64748b;
+        --secondary-hover: #475569;
+        --bg: #eeeeee;
+        --surface: #ffffff;
+        --input: #f7f7f7;
+        --text: #1a2b4c;
+        --text-2: #585858;
+        --muted: #c3c3c3;
+        --border: #c3c3c3;
+        --success: #16a34a;
+        --success-light: #dcfce7;
+        --danger: #dc2626;
+        --danger-light: #fee2e2;
+        --warning: #d97706;
+        --warning-light: #fef3c7;
+        --line: rgba(195, 195, 195, 0.55);
+        --radius: 16px;
+        --shadow:
+          0 1px 2px rgba(26, 43, 76, 0.06), 0 6px 18px rgba(26, 43, 76, 0.07);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.45;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+        color: inherit;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      .ic {
+        width: 20px;
+        height: 20px;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      :focus-visible {
+        outline: 3px solid rgba(0, 168, 143, 0.35);
+        outline-offset: 2px;
+      }
+
+      /* ---------- Structure ---------- */
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        display: none;
+      }
+
+      main {
+        min-width: 0;
+        padding: 14px 14px 92px;
+        max-width: 1120px;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 2px 0 14px;
+        flex-wrap: wrap;
+      }
+
+      .top h1 {
+        font-size: 22px;
+        margin: 0;
+      }
+
+      .chips {
+        display: flex;
+        gap: 2px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 30px;
+        padding: 0 5px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-2);
+        white-space: nowrap;
+      }
+
+      .chip .ic {
+        width: 16px;
+        height: 16px;
+      }
+
+      .top .chips .chip {
+        height: 36px;
+      }
+
+      .top .chips .chip .ic {
+        width: 24px;
+        height: 24px;
+      }
+
+      .chip.ok {
+        color: var(--success);
+      }
+
+      .chip.warn {
+        color: var(--warning);
+      }
+
+      .chip.bad {
+        color: var(--danger);
+      }
+
+      .tabbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        display: flex;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 0 -4px 16px rgba(26, 43, 76, 0.06);
+      }
+
+      .tabbar button {
+        flex: 1;
+        height: 62px;
+        border: 0;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-2);
+        cursor: pointer;
+      }
+
+      .tabbar button[aria-current="page"] {
+        color: var(--primary);
+      }
+
+      .tabbar button[aria-current="page"] .ic {
+        stroke-width: 2.2;
+      }
+
+      @media (min-width: 900px) {
+        .app {
+          grid-template-columns: 252px 1fr;
+        }
+
+        .side {
+          display: flex;
+          flex-direction: column;
+          position: sticky;
+          top: 0;
+          height: 100vh;
+          background: var(--surface);
+          padding: 22px 14px;
+          border-right: 1px solid var(--line);
+        }
+
+        .tabbar {
+          display: none;
+        }
+
+        main {
+          padding: 26px 28px 40px;
+        }
+
+        .top h1 {
+          font-size: 26px;
+        }
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 8px 22px;
+      }
+
+      .brand .logo {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--primary);
+        display: grid;
+        place-items: center;
+        color: #fff;
+      }
+
+      .brand b {
+        display: block;
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
+      .brand small {
+        color: var(--text-2);
+        font-size: 12px;
+      }
+
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .nav button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 44px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--text-2);
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .nav button:hover {
+        background: var(--input);
+      }
+
+      .nav button[aria-current="page"] {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .side-foot {
+        margin-top: auto;
+        padding: 14px 8px 0;
+        border-top: 1px solid var(--line);
+        font-size: 13px;
+        color: var(--text-2);
+      }
+
+      .side-foot .cd {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      /* ---------- Cartes ---------- */
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 18px;
+        min-width: 0;
+      }
+
+      .card h2 {
+        font-size: 14px;
+        margin: 0 0 12px;
+        color: var(--text-2);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .card-head h2 {
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        margin-bottom: 14px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .two {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 1fr;
+      }
+
+      @media (min-width: 900px) {
+        .two {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 6px;
+      }
+
+      .muted {
+        color: var(--text-2);
+        font-size: 13px;
+      }
+
+      .kv {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        font-size: 14px;
+      }
+
+      .kv span:first-child {
+        color: var(--text-2);
+      }
+
+      .kv b {
+        font-weight: 600;
+        text-align: right;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      /* ---------- Pastilles d'état ---------- */
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .pill.ok {
+        color: var(--success);
+      }
+
+      .pill.bad {
+        color: var(--danger);
+      }
+
+      .pill.warn {
+        color: var(--warning);
+      }
+
+      .pill.neutral {
+        color: var(--text-2);
+      }
+
+      .pill .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .pill.big {
+        font-size: 15px;
+        padding: 9px 16px;
+      }
+
+      .network-status {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .network-icon {
+        width: 42px;
+        height: 42px;
+      }
+
+      /* ---------- Boutons et champs ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 42px;
+        padding: 0 16px;
+        border: 1.5px solid var(--primary);
+        border-radius: 12px;
+        background: var(--primary);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        white-space: nowrap;
+        text-decoration: none;
+      }
+
+      .sync-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        width: 20px;
+        height: 20px;
+        line-height: 0;
+      }
+
+      .sync-icon .ic {
+        display: block;
+      }
+
+      .btn:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+      }
+
+      .btn.out {
+        background: transparent;
+        color: var(--primary-light);
+        border-color: var(--primary-outline);
+      }
+
+      .btn.out:hover {
+        background: rgba(0, 168, 143, 0.08);
+      }
+
+      .btn.sec {
+        background: var(--secondary);
+        border-color: var(--secondary);
+      }
+
+      .btn.sec:hover {
+        background: var(--secondary-hover);
+        border-color: var(--secondary-hover);
+      }
+
+      .btn.danger {
+        background: var(--danger);
+        border-color: var(--danger);
+      }
+
+      .btn.danger:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+
+      .btn.danger.out {
+        background: transparent;
+        color: var(--danger);
+      }
+
+      .btn.danger.out:hover {
+        background: var(--danger-light);
+      }
+
+      .btn.sm {
+        height: 34px;
+        padding: 0 12px;
+        font-size: 13px;
+        border-radius: 10px;
+      }
+
+      .btn.icon {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 10px;
+      }
+
+      .btn:disabled {
+        background: var(--muted);
+        border-color: var(--muted);
+        color: #fff;
+        cursor: not-allowed;
+      }
+
+      .btn.out:disabled {
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .btn.wait {
+        background: var(--primary-waiting);
+        border-color: var(--primary-waiting);
+      }
+
+      .btnrow {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      label.f {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .inp {
+        width: 100%;
+        height: 44px;
+        padding: 0 14px;
+        border: 1.5px solid transparent;
+        border-radius: 12px;
+        background: var(--input);
+        outline: none;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+
+      .inp:focus {
+        border-color: var(--primary);
+        background: #fff;
+      }
+
+      .inp::placeholder {
+        color: var(--muted);
+      }
+
+      .inp.err {
+        border-color: var(--danger);
+      }
+
+      .form {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: 1fr;
+      }
+
+      @media (min-width: 640px) {
+        .form.inline {
+          grid-template-columns: 1.6fr 1fr auto;
+          align-items: end;
+        }
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--text-2);
+        margin-top: 5px;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 30px;
+        flex: none;
+      }
+
+      .switch input {
+        position: absolute;
+        opacity: 0;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+        z-index: 1;
+      }
+
+      .switch i {
+        position: absolute;
+        inset: 0;
+        background: var(--muted);
+        border-radius: 999px;
+        transition: background 0.2s;
+      }
+
+      .switch i::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 24px;
+        height: 24px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
+
+      .switch input:checked + i {
+        background: var(--primary);
+      }
+
+      .switch input:checked + i::after {
+        transform: translateX(20px);
+      }
+
+      .switch input:focus-visible + i {
+        outline: 3px solid rgba(0, 168, 143, 0.35);
+        outline-offset: 2px;
+      }
+
+      .opt {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .opt b {
+        display: block;
+      }
+
+      .opt .muted {
+        display: block;
+      }
+
+      /* ---------- Graphiques ---------- */
+      .ring {
+        width: 132px;
+        height: 132px;
+      }
+
+      .ring-t {
+        font-size: 26px;
+        font-weight: 700;
+        fill: var(--text);
+      }
+
+      .bar {
+        height: 10px;
+        background: var(--bg);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .bar i {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--primary);
+        transition: width 0.4s;
+      }
+
+      .stats {
+        display: grid;
+        gap: 22px;
+        grid-template-columns: 1fr;
+        align-items: center;
+      }
+
+      @media (min-width: 700px) {
+        .stats {
+          grid-template-columns: 240px 1fr;
+        }
+      }
+
+      .legend {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+        font-size: 14px;
+        width: 100%;
+      }
+
+      .legend div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend i {
+        width: 11px;
+        height: 11px;
+        border-radius: 3px;
+        flex: none;
+      }
+
+      .legend b {
+        margin-left: auto;
+      }
+
+      .bars {
+        width: 100%;
+        height: auto;
+        max-height: 210px;
+      }
+
+      .bars text {
+        font-size: 11px;
+        fill: var(--text-2);
+      }
+
+      .bars .v {
+        font-size: 12px;
+        font-weight: 700;
+        fill: var(--text);
+      }
+
+      .big-time {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+      }
+
+      /* ---------- Listes ---------- */
+      .list {
+        display: grid;
+      }
+
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 2px;
+        border-top: 1px solid var(--line);
+      }
+
+      .item:first-child {
+        border-top: 0;
+      }
+
+      .av {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(0, 168, 143, 0.12);
+        color: var(--primary-light);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 13px;
+        flex: none;
+      }
+
+      .item .main {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .item .main b {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .item .main span {
+        color: var(--text-2);
+        font-size: 13px;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .acts {
+        display: flex;
+        gap: 6px;
+        flex: none;
+      }
+
+      .empty {
+        padding: 26px 8px;
+        text-align: center;
+        color: var(--text-2);
+      }
+
+      .seg {
+        display: inline-flex;
+        background: var(--input);
+        border-radius: 12px;
+        padding: 3px;
+        gap: 2px;
+        flex-wrap: wrap;
+      }
+
+      .seg button {
+        border: 0;
+        background: transparent;
+        height: 34px;
+        padding: 0 12px;
+        border-radius: 9px;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-2);
+        cursor: pointer;
+      }
+
+      .seg button[aria-pressed="true"] {
+        background: var(--surface);
+        color: var(--primary-light);
+        box-shadow: 0 1px 3px rgba(26, 43, 76, 0.15);
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .lastbox {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--input);
+        margin-top: 14px;
+      }
+
+      /* ---------- Bandeaux, toasts, fenêtres ---------- */
+      .banner {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        padding: 12px 14px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .banner.warn {
+        background: var(--warning-light);
+        color: #92400e;
+      }
+
+      .banner.bad {
+        background: var(--danger-light);
+        color: #991b1b;
+      }
+
+      #toasts {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 78px;
+        z-index: 60;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        pointer-events: none;
+      }
+
+      @media (min-width: 900px) {
+        #toasts {
+          bottom: 24px;
+          left: auto;
+          right: 24px;
+          align-items: flex-end;
+        }
+      }
+
+      .toast {
+        max-width: 420px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        animation: in 0.2s ease-out;
+        pointer-events: auto;
+      }
+
+      .toast.ok {
+        background: var(--success);
+      }
+
+      .toast.bad {
+        background: var(--danger);
+      }
+
+      .toast.info {
+        background: var(--secondary);
+      }
+
+      @keyframes in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: rgba(26, 43, 76, 0.45);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .sheet {
+        background: var(--surface);
+        width: 100%;
+        max-width: 460px;
+        border-radius: 20px 20px 0 0;
+        padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+        animation: up 0.2s ease-out;
+      }
+
+      @media (min-width: 640px) {
+        .modal {
+          align-items: center;
+          padding: 20px;
+        }
+
+        .sheet {
+          border-radius: 20px;
+        }
+      }
+
+      @keyframes up {
+        from {
+          transform: translateY(24px);
+          opacity: 0;
+        }
+
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+
+      .sheet h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+
+      .sheet p {
+        margin: 0 0 14px;
+        color: var(--text-2);
+      }
+
+      .sheet .btnrow {
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+
+      .spin {
+        width: 16px;
+        height: 16px;
+        border: 2.5px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: rot 0.8s linear infinite;
+      }
+
+      @keyframes rot {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: var(--bg);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        text-align: center;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-grid" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </symbol>
+        <symbol id="i-badge" viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="9" cy="11" r="2" />
+          <path d="M6 16c.5-1.5 1.7-2 3-2s2.5.5 3 2" />
+          <path d="M15 10h3M15 13h3" />
+        </symbol>
+        <symbol id="i-list" viewBox="0 0 24 24">
+          <path d="M8 6h13M8 12h13M8 18h13" />
+          <circle cx="4" cy="6" r="1" />
+          <circle cx="4" cy="12" r="1" />
+          <circle cx="4" cy="18" r="1" />
+        </symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24">
+          <path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z" />
+          <path d="M9 12l2 2 4-4" />
+        </symbol>
+        <symbol id="i-download" viewBox="0 0 24 24">
+          <path d="M12 3v12" />
+          <path d="M7 10l5 5 5-5" />
+          <path d="M4 21h16" />
+        </symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24">
+          <path d="M4 7h16" />
+          <path d="M9 7V4h6v3" />
+          <path d="M6 7l1 13h10l1-13" />
+        </symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24">
+          <path d="M4 20h4L19 9l-4-4L4 16z" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" />
+        </symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24">
+          <path d="M9 4H5v16h4" />
+          <path d="M16 8l4 4-4 4" />
+          <path d="M20 12H9" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+          <path d="M20 5v6h-6" />
+        </symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24">
+          <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol id="i-sim" viewBox="0 0 24 24">
+          <path d="M7 3h7l4 4v14H7z" />
+          <rect x="10" y="12" width="5" height="6" rx="1" />
+        </symbol>
+        <symbol id="i-wifi" viewBox="0 0 24 24">
+          <path
+            d="M5 9.5a11 11 0 0 1 14 0M8 12.5a6.5 6.5 0 0 1 8 0M11 15.5a2 2 0 0 1 2 0"
+          />
+          <circle cx="12" cy="19" r="1" />
+        </symbol>
+        <symbol id="i-wifi-off" viewBox="0 0 24 24">
+          <path
+            d="M3 3l18 18M5 9.5c1.4-1.1 3-1.7 4.7-1.9M14.3 7.6c1.7.2 3.3.8 4.7 1.9M8 12.5c.8-.6 1.7-1 2.7-1.1M16 12.5c-.5-.4-1-.7-1.6-.9M11 15.5a2 2 0 0 1 2 0"
+          />
+          <circle cx="12" cy="19" r="1" />
+        </symbol>
+        <symbol id="i-battery" viewBox="0 0 24 24">
+          <rect x="3" y="7" width="17" height="10" rx="2" />
+          <path d="M20 10h2v4h-2" />
+        </symbol>
+        <symbol id="i-network" viewBox="0 0 24 24">
+          <path d="M4 20v-3M9 20v-7M14 20V9M19 20V4" />
+        </symbol>
+        <symbol id="i-network-off" viewBox="0 0 24 24">
+          <path d="M4 20v-3M9 20v-7M14 20V9M19 20V4M3 3l18 18" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="app">
+      <aside class="side">
+        <div class="brand">
+          <div class="logo">
+            <svg class="ic">
+              <use href="#i-badge" />
+            </svg>
+          </div>
+          <div><b>Rondix</b><small class="devId">—</small></div>
+        </div>
+        <nav class="nav" aria-label="Navigation"></nav>
+        <div class="side-foot">
+          <div class="cd">
+            <span>Arrêt automatique</span>
+            <b class="countdown">—</b>
+          </div>
+          <button class="btn out sm" data-act="logout" style="width: 100%">
+            <svg class="ic">
+              <use href="#i-logout" /></svg
+            >Déconnexion
+          </button>
+        </div>
+      </aside>
+
+      <main>
+        <div class="top">
+          <h1 id="title">Aperçu</h1>
+          <div class="chips">
+            <span
+              class="chip warn"
+              id="chipNet"
+              aria-label="Connexion Internet en cours"
+            >
+              <svg class="ic" aria-hidden="true"><use href="#i-wifi" /></svg>
+            </span>
+            <span class="chip" id="chipBat" aria-label="Niveau de batterie">
+              <svg class="ic" aria-hidden="true"><use href="#i-battery" /></svg>
+              <span class="chip-text">— %</span>
+            </span>
+          </div>
+        </div>
+        <div id="banners"></div>
+
+        <!-- ===================== APERÇU ===================== -->
+        <section id="v-overview" class="view">
+          <div class="grid">
+            <article class="card">
+              <h2>Batterie</h2>
+              <div class="center">
+                <div id="battViz"></div>
+                <b id="battVolt">—</b><span class="muted" id="battNote">—</span>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Réseau mobile</h2>
+              <div class="network-status">
+                <svg id="netIcon" class="ic network-icon" aria-hidden="true">
+                  <use href="#i-network-off" />
+                </svg>
+                <span id="netPill" class="pill big neutral">—</span>
+              </div>
+              <div class="kv"><span>Serveur</span><b id="netMqtt">—</b></div>
+              <div class="kv">
+                <span>État du modem</span><b id="netState">—</b>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Date et heure</h2>
+              <div class="center">
+                <div class="big-time clk-local">--:--:--</div>
+                <span class="muted clk-date">—</span>
+                <span class="clk-valid"></span>
+                <button
+                  class="btn out sm"
+                  data-go="time"
+                  style="margin-top: 6px"
+                >
+                  <svg class="ic">
+                    <use href="#i-clock" /></svg
+                  >Régler l'heure
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Mémoire du boîtier</h2>
+              <div
+                class="bar"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                id="fsBar"
+              >
+                <i style="width: 0"></i>
+              </div>
+              <div class="kv" style="margin-top: 12px">
+                <span>Utilisée</span><b id="fsTxt">—</b>
+              </div>
+              <div class="kv">
+                <span>Badges autorisés</span><b id="badgeCnt">—</b>
+              </div>
+              <div class="kv">
+                <span>Logs enregistrés</span><b id="logCnt">—</b>
+              </div>
+            </article>
+          </div>
+
+          <article class="card">
+            <div class="card-head">
+              <h2>Statistiques des logs</h2>
+              <button
+                class="btn out sm"
+                data-act="reload-stats"
+                aria-label="Actualiser"
+              >
+                <svg class="ic">
+                  <use href="#i-refresh" /></svg
+                >Actualiser
+              </button>
+            </div>
+            <div class="stats">
+              <div class="center">
+                <div id="donut"></div>
+                <div class="legend" id="legend"></div>
+              </div>
+              <div>
+                <div class="muted" style="margin-bottom: 6px">
+                  Passages enregistrés ces 7 derniers jours
+                </div>
+                <div id="bars"></div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===================== BADGES ===================== -->
+        <section id="v-badges" class="view" hidden>
+          <div class="stack">
+            <article class="card">
+              <h2>Ajouter un badge</h2>
+              <form class="form inline" id="addForm" autocomplete="off">
+                <div>
+                  <label class="f" for="addUid">UID du badge</label>
+                  <input
+                    class="inp mono"
+                    id="addUid"
+                    placeholder="04A1B2C3"
+                    maxlength="23"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="f" for="addAgent">ID de l'agent</label>
+                  <input
+                    class="inp mono"
+                    id="addAgent"
+                    placeholder="AG001"
+                    maxlength="5"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    required
+                  />
+                </div>
+                <button class="btn" type="submit">
+                  <svg class="ic">
+                    <use href="#i-plus" /></svg
+                  >Ajouter
+                </button>
+              </form>
+              <div class="hint">
+                UID : 8 à 20 caractères hexadécimaux (0-9, A-F). Agent : 1 à 5
+                caractères (A-Z, 0-9, _ ou -).
+              </div>
+              <div class="lastbox" id="lastBox" hidden>
+                <div>
+                  <div class="muted">Dernier badge présenté au lecteur</div>
+                  <b class="mono" id="lastUid">—</b> <span id="lastTag"></span>
+                </div>
+                <button class="btn out sm" id="useLast" type="button">
+                  Utiliser cet UID
+                </button>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <h2 id="badgeTitle">Badges autorisés</h2>
+              </div>
+              <input
+                class="inp"
+                id="badgeSearch"
+                type="search"
+                placeholder="Rechercher un agent ou un UID…"
+                style="margin-bottom: 6px"
+              />
+              <div class="list" id="badgeList"></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ===================== LOGS ===================== -->
+        <section id="v-logs" class="view" hidden>
+          <article class="card">
+            <div class="toolbar">
+              <div
+                class="seg"
+                id="logFilter"
+                role="group"
+                aria-label="Filtrer par statut"
+              >
+                <button data-f="all" aria-pressed="true">Tous</button>
+                <button data-f="0" aria-pressed="false">En attente</button>
+                <button data-f="1" aria-pressed="false">Envoyés</button>
+                <button data-f="2" aria-pressed="false">Échecs</button>
+              </div>
+              <div class="btnrow">
+                <a class="btn out sm" href="/download" download
+                  ><svg class="ic">
+                    <use href="#i-download" /></svg
+                  >Télécharger logs.csv</a
+                >
+                <button class="btn danger out sm" data-act="clear-logs">
+                  <svg class="ic">
+                    <use href="#i-trash" /></svg
+                  >Tout supprimer
+                </button>
+              </div>
+            </div>
+            <div class="muted" id="logCount" style="margin-bottom: 6px">—</div>
+            <div class="list" id="logList"></div>
+            <div
+              class="btnrow"
+              style="justify-content: center; margin-top: 12px"
+            >
+              <button class="btn out sm" id="moreLogs" hidden>
+                Charger plus
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===================== DATE ET HEURE ===================== -->
+        <section id="v-time" class="view" hidden>
+          <div class="stack">
+            <article class="card">
+              <h2>Heure du boîtier</h2>
+              <div class="center">
+                <div class="big-time clk-local">--:--:--</div>
+                <span class="muted clk-date">—</span>
+                <span class="muted"
+                  >UTC <span class="mono clk-utc">—</span> · fuseau local
+                  <span id="tzLabel">UTC+3</span></span
+                >
+                <span class="clk-valid"></span>
+                <span class="muted" id="syncInfo">—</span>
+              </div>
+            </article>
+            <div class="two">
+              <article class="card">
+                <h2>Mode automatique</h2>
+                <div class="opt" style="margin-bottom: 16px">
+                  <div>
+                    <b>Synchronisation automatique</b>
+                    <span class="muted"
+                      >Toutes les 24 h, via le réseau mobile</span
+                    >
+                  </div>
+                  <label class="switch">
+                    <input
+                      type="checkbox"
+                      id="autoSw"
+                      aria-label="Synchronisation automatique"
+                    />
+                    <i></i>
+                  </label>
+                </div>
+                <button class="btn" id="syncNow">
+                  <span class="sync-icon"><svg class="ic">
+                    <use href="#i-refresh" />
+                  </svg></span>
+                  <span class="sync-label">Synchroniser maintenant</span>
+                </button>
+                <div class="hint" id="syncHint">
+                  Nécessite un accès Internet. Le boîtier se déconnecte
+                  brièvement du serveur.
+                </div>
+              </article>
+              <article class="card">
+                <h2>Mode manuel</h2>
+                <button class="btn out" id="setDevice" style="width: 100%">
+                  <svg class="ic">
+                    <use href="#i-clock" /></svg
+                  >Utiliser l'heure de cet appareil
+                </button>
+                <div class="muted" style="text-align: center; margin: 10px 0">
+                  ou saisir une date et une heure locales
+                </div>
+                <div class="form">
+                  <input
+                    class="inp"
+                    id="manualDt"
+                    type="datetime-local"
+                    step="1"
+                    placeholder="Choisissez une date et une heure"
+                    aria-label="Date et heure locales"
+                  />
+                  <button class="btn sec" id="setManual">Appliquer</button>
+                </div>
+                <div class="hint">
+                  Choisissez une date et une heure dans le champ. L'heure saisie
+                  est interprétée dans le fuseau du boîtier (<span
+                    class="tzLabel"
+                    >UTC+3</span
+                  >).
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== COMPTE ===================== -->
+        <section id="v-account" class="view" hidden>
+          <div class="two">
+            <article class="card">
+              <h2>Identité du boîtier</h2>
+              <form class="form" id="deviceIdForm" autocomplete="off">
+                <div>
+                  <label class="f" for="deviceId">ID du boîtier</label>
+                  <input
+                    class="inp mono"
+                    id="deviceId"
+                    name="deviceId"
+                    placeholder="PN-01"
+                    maxlength="24"
+                    pattern="[A-Z0-9_-]{1,24}"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    required
+                  />
+                </div>
+                <button class="btn" type="submit">Enregistrer l'identifiant</button>
+              </form>
+              <div class="hint">
+                Utilisez un ID unique pour chaque boîtier : 1 à 24 caractères parmi A-Z, 0-9, « - » et « _ ».
+                Le boîtier redémarrera pour appliquer le changement. Les journaux encore en attente seront envoyés avec ce nouvel ID.
+              </div>
+            </article>
+            <article class="card">
+              <h2>Changer le mot de passe</h2>
+              <form class="form" id="pwForm" autocomplete="off">
+                <div>
+                  <label class="f" for="pwCur">Mot de passe actuel</label>
+                  <input
+                    class="inp"
+                    id="pwCur"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Saisissez votre mot de passe actuel"
+                    required
+                    maxlength="64"
+                  />
+                </div>
+                <div>
+                  <label class="f" for="pwNew">Nouveau mot de passe</label>
+                  <input
+                    class="inp"
+                    id="pwNew"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Choisissez un nouveau mot de passe"
+                    required
+                    minlength="8"
+                    maxlength="64"
+                  />
+                  <div class="hint">8 caractères minimum.</div>
+                </div>
+                <div>
+                  <label class="f" for="pwCfm"
+                    >Confirmer le nouveau mot de passe</label
+                  >
+                  <input
+                    class="inp"
+                    id="pwCfm"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Saisissez à nouveau le nouveau mot de passe"
+                    required
+                    maxlength="64"
+                  />
+                </div>
+                <button class="btn" type="submit">
+                  Enregistrer le mot de passe
+                </button>
+              </form>
+            </article>
+            <article class="card">
+              <h2>Session</h2>
+              <div class="kv"><span>Boîtier</span><b class="devId">—</b></div>
+              <div class="kv"><span>Firmware</span><b id="fwVer">—</b></div>
+              <div class="kv">
+                <span>Arrêt automatique dans</span><b class="countdown">—</b>
+              </div>
+              <div class="hint" style="margin: 10px 0 16px">
+                Le point d'accès Wi-Fi se coupe après 5 minutes sans action de
+                votre part.
+              </div>
+              <button class="btn out" data-act="logout">
+                <svg class="ic">
+                  <use href="#i-logout" /></svg
+                >Se déconnecter
+              </button>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="Navigation"></nav>
+    </div>
+
+    <div id="toasts" role="status" aria-live="polite"></div>
+    <div class="modal" id="modal" hidden></div>
+    <div class="overlay" id="stopped" hidden>
+      <div>
+        <h2 style="margin: 0 0 8px">Mode secours arrêté</h2>
+        <p class="muted">
+          Le point d'accès Wi-Fi a été coupé.<br />Maintenez le bouton enfoncé
+          pendant 5 secondes pour le relancer.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        /* ---------- Outils ---------- */
+        var $ = function (s, r) {
+          return (r || document).querySelector(s);
+        };
+        var $$ = function (s, r) {
+          return Array.prototype.slice.call(
+            (r || document).querySelectorAll(s),
+          );
+        };
+        var NS = "http://www.w3.org/2000/svg";
+        var pad = function (n) {
+          return String(n).padStart(2, "0");
+        };
+
+        function el(tag, props) {
+          var e = document.createElement(tag),
+            i,
+            k;
+          for (k in props || {}) {
+            if (k === "class") e.className = props[k];
+            else if (k === "text") e.textContent = props[k];
+            else if (k.slice(0, 2) === "on")
+              e.addEventListener(k.slice(2), props[k]);
+            else if (props[k] !== false && props[k] != null)
+              e.setAttribute(k, props[k] === true ? "" : props[k]);
+          }
+          for (i = 2; i < arguments.length; i++) {
+            var c = arguments[i];
+            if (c == null) continue;
+            if (Array.isArray(c))
+              c.forEach(function (x) {
+                e.append(x.nodeType ? x : document.createTextNode(x));
+              });
+            else e.append(c.nodeType ? c : document.createTextNode(c));
+          }
+          return e;
+        }
+        function ico(name) {
+          var s = document.createElementNS(NS, "svg"),
+            u = document.createElementNS(NS, "use");
+          s.setAttribute("class", "ic");
+          u.setAttribute("href", "#i-" + name);
+          s.append(u);
+          return s;
+        }
+
+        var ERR = {
+          network: "Le boîtier ne répond pas. Vérifiez la connexion Wi-Fi.",
+          bad_request: "Requête invalide.",
+          invalid_uid:
+            "UID invalide : 8 à 20 caractères hexadécimaux (0-9, A-F).",
+          invalid_agent:
+            "ID d'agent invalide : 1 à 5 caractères (A-Z, 0-9, _ ou -).",
+          duplicate: "Ce badge existe déjà.",
+          full: "Liste pleine (100 badges maximum).",
+          not_found: "Introuvable.",
+          storage: "Erreur d'écriture dans la mémoire du boîtier.",
+          wrong_password: "Mot de passe actuel incorrect.",
+          weak_password:
+            "Le nouveau mot de passe doit contenir de 8 à 64 caractères.",
+          locked: "Trop de tentatives. Réessayez dans 30 secondes.",
+          no_internet: "Pas d'accès Internet : synchronisation impossible.",
+          busy: "Une synchronisation est déjà en cours.",
+          bad_time: "Date ou heure invalide (année 2026 minimum).",
+          invalid_device_id:
+            "ID invalide. Utilisez 1 à 24 caractères parmi A-Z, 0-9, - et _.",
+        };
+
+        function api(path, opt) {
+          opt = opt || {};
+          var o = {
+            method: opt.method || "GET",
+            credentials: "same-origin",
+            headers: {},
+          };
+          if (opt.body) {
+            o.headers["Content-Type"] = "application/x-www-form-urlencoded";
+            o.body = new URLSearchParams(opt.body).toString();
+          }
+          return fetch(path, o)
+            .catch(function () {
+              throw { code: "network" };
+            })
+            .then(function (r) {
+              if (r.status === 401) {
+                location.href = "/?e=3";
+                throw { code: "auth" };
+              }
+              return r
+                .json()
+                .catch(function () {
+                  return {};
+                })
+                .then(function (j) {
+                  if (!r.ok || j.ok === false)
+                    throw { code: j.error || "error", status: r.status };
+                  return j;
+                });
+            });
+        }
+        function fail(e) {
+          if (e.code !== "auth")
+            toast(ERR[e.code] || "Erreur inattendue.", "bad");
+        }
+
+        function toast(msg, type) {
+          var t = el("div", { class: "toast " + (type || "ok"), text: msg });
+          $("#toasts").append(t);
+          setTimeout(function () {
+            t.remove();
+          }, 4200);
+        }
+
+        /* ---------- Heure ---------- */
+        var DAYS = [
+          "dimanche",
+          "lundi",
+          "mardi",
+          "mercredi",
+          "jeudi",
+          "vendredi",
+          "samedi",
+        ];
+        var MONTHS = [
+          "janvier",
+          "février",
+          "mars",
+          "avril",
+          "mai",
+          "juin",
+          "juillet",
+          "août",
+          "septembre",
+          "octobre",
+          "novembre",
+          "décembre",
+        ];
+        var S = {
+          tz: 180,
+          status: null,
+          view: "overview",
+          idle: 0,
+          idleAt: 0,
+          fails: 0,
+          online: true,
+          stats: null,
+          clock: { base: 0, perf: 0, valid: false },
+          badges: [],
+          q: "",
+          logs: { rows: [], total: 0, more: false, filter: "all" },
+          polling: null,
+          stopped: false,
+        };
+
+        function parseIso(s) {
+          var m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(s || "");
+          return m
+            ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6])
+            : NaN;
+        }
+        function shifted(ms) {
+          return new Date(ms + S.tz * 60000);
+        }
+        function fmtTime(d) {
+          return (
+            pad(d.getUTCHours()) +
+            ":" +
+            pad(d.getUTCMinutes()) +
+            ":" +
+            pad(d.getUTCSeconds())
+          );
+        }
+        function tzLabel() {
+          var a = Math.abs(S.tz),
+            h = Math.floor(a / 60),
+            m = a % 60;
+          return "UTC" + (S.tz < 0 ? "-" : "+") + h + (m ? ":" + pad(m) : "");
+        }
+        function nowMs() {
+          return S.clock.base + (performance.now() - S.clock.perf);
+        }
+
+        function tickClock() {
+          var valid = S.clock.valid,
+            d = valid ? shifted(nowMs()) : null;
+          $$(".clk-local").forEach(function (n) {
+            n.textContent = valid ? fmtTime(d) : "--:--:--";
+          });
+          $$(".clk-date").forEach(function (n) {
+            n.textContent = valid
+              ? DAYS[d.getUTCDay()] +
+                " " +
+                d.getUTCDate() +
+                " " +
+                MONTHS[d.getUTCMonth()] +
+                " " +
+                d.getUTCFullYear()
+              : "Heure non réglée";
+          });
+          $$(".clk-utc").forEach(function (n) {
+            n.textContent = valid ? fmtTime(new Date(nowMs())) : "--:--:--";
+          });
+          $$(".clk-valid").forEach(function (n) {
+            n.className = "clk-valid pill " + (valid ? "ok" : "bad");
+            n.innerHTML = "";
+            n.append(valid ? "Horloge à l’heure" : "Horloge invalide");
+          });
+          // compte à rebours de l'arrêt automatique
+          var s = Math.max(
+            0,
+            Math.round(S.idle - (performance.now() - S.idleAt) / 1000),
+          );
+          var txt = pad(Math.floor(s / 60)) + ":" + pad(s % 60);
+          $$(".countdown").forEach(function (n) {
+            n.textContent = txt;
+            n.style.color = s <= 60 ? "var(--danger)" : "";
+          });
+          if (S.status && s === 0 && !S.stopped) showStopped();
+        }
+
+        /* ---------- Graphiques ---------- */
+        function ring(pct, color) {
+          var r = 52,
+            c = 2 * Math.PI * r;
+          return (
+            '<svg class="ring" viewBox="0 0 120 120" role="img" aria-label="Batterie ' +
+            pct +
+            ' %">' +
+            '<circle cx="60" cy="60" r="' +
+            r +
+            '" fill="none" stroke="#EEEEEE" stroke-width="12"/>' +
+            '<circle cx="60" cy="60" r="' +
+            r +
+            '" fill="none" stroke="' +
+            color +
+            '" stroke-width="12" stroke-linecap="round" ' +
+            'stroke-dasharray="' +
+            ((c * pct) / 100).toFixed(1) +
+            " " +
+            c.toFixed(1) +
+            '" transform="rotate(-90 60 60)"/>' +
+            '<text x="60" y="68" text-anchor="middle" class="ring-t">' +
+            pct +
+            "%</text></svg>"
+          );
+        }
+        function donut(parts, total) {
+          var r = 52,
+            c = 2 * Math.PI * r,
+            off = 0,
+            out =
+              '<svg class="ring" viewBox="0 0 120 120" role="img" aria-label="Répartition des logs">' +
+              '<circle cx="60" cy="60" r="' +
+              r +
+              '" fill="none" stroke="#EEEEEE" stroke-width="14"/>';
+          if (total > 0)
+            parts.forEach(function (p) {
+              if (!p.n) return;
+              var len = (c * p.n) / total;
+              out +=
+                '<circle cx="60" cy="60" r="' +
+                r +
+                '" fill="none" stroke="' +
+                p.color +
+                '" stroke-width="14" stroke-dasharray="' +
+                len.toFixed(1) +
+                " " +
+                (c - len).toFixed(1) +
+                '" stroke-dashoffset="' +
+                (-off).toFixed(1) +
+                '" transform="rotate(-90 60 60)"/>';
+              off += len;
+            });
+          return (
+            out +
+            '<text x="60" y="58" text-anchor="middle" class="ring-t" style="font-size:24px">' +
+            total +
+            "</text>" +
+            '<text x="60" y="76" text-anchor="middle" style="font-size:11px;fill:#585858">logs</text></svg>'
+          );
+        }
+        function bars(days) {
+          if (!days || !days.length)
+            return '<div class="empty">Horloge non réglée : statistiques indisponibles.</div>';
+          var max = Math.max(
+            1,
+            Math.max.apply(
+              null,
+              days.map(function (d) {
+                return d.n;
+              }),
+            ),
+          );
+          var W = 420,
+            H = 190,
+            bw = 40,
+            gap = (W - bw * 7) / 6,
+            base = H - 26,
+            top = 24,
+            out = "";
+          days.forEach(function (d, i) {
+            var h = Math.round(((base - top) * d.n) / max),
+              x = Math.round(i * (bw + gap)),
+              y = base - h,
+              last = i === days.length - 1;
+            var parts = d.d.split("-");
+            out +=
+              '<rect x="' +
+              x +
+              '" y="' +
+              (d.n ? y : base - 2) +
+              '" width="' +
+              bw +
+              '" height="' +
+              (d.n ? h : 2) +
+              '" rx="6" fill="' +
+              (last ? "#00A88F" : "#7FD3C7") +
+              '"><title>' +
+              parts[1] +
+              "/" +
+              parts[0] +
+              " : " +
+              d.n +
+              "</title></rect>" +
+              '<text class="v" x="' +
+              (x + bw / 2) +
+              '" y="' +
+              (y - 6) +
+              '" text-anchor="middle">' +
+              d.n +
+              "</text>" +
+              '<text x="' +
+              (x + bw / 2) +
+              '" y="' +
+              (H - 6) +
+              '" text-anchor="middle">' +
+              parts[1] +
+              "/" +
+              parts[0] +
+              "</text>";
+          });
+          return (
+            '<svg class="bars" viewBox="0 0 ' +
+            W +
+            " " +
+            H +
+            '" role="img" aria-label="Passages par jour">' +
+            out +
+            "</svg>"
+          );
+        }
+
+        /* ---------- Rendu de l'état ---------- */
+        var STATE = {
+          modem_start: "Démarrage du modem…",
+          modem_init: "Initialisation du modem…",
+          network: "Recherche du réseau mobile…",
+          internet: "Connexion Internet…",
+          time: "Synchronisation de l'heure…",
+          mqtt_init: "Préparation du serveur…",
+          mqtt_connect: "Connexion au serveur…",
+          running: "Opérationnel",
+          error: "Erreur — redémarrage du modem",
+        };
+
+        function setChip(id, cls, iconName, text, label) {
+          var c = $(id);
+          c.className = "chip " + cls;
+          c.querySelector("use").setAttribute("href", "#i-" + iconName);
+          var chipText = c.querySelector(".chip-text");
+          if (chipText) chipText.textContent = text;
+          c.setAttribute("aria-label", label);
+        }
+
+        function applyStatus(s) {
+          S.status = s;
+          S.tz = s.tz;
+          S.idle = s.idleSec;
+          S.idleAt = performance.now();
+          S.clock = {
+            base: s.rtcValid ? parseIso(s.utc) : 0,
+            perf: performance.now(),
+            valid: !!s.rtcValid,
+          };
+
+          $$(".devId").forEach(function (n) {
+            n.textContent = s.device;
+          });
+          if (document.activeElement !== $("#deviceId"))
+            $("#deviceId").value = s.device;
+          $("#fwVer").textContent = s.fw;
+          $$(".tzLabel").forEach(function (n) {
+            n.textContent = tzLabel();
+          });
+          $("#tzLabel").textContent = tzLabel();
+
+          // Batterie
+          var pct = s.battery.pct,
+            col = pct >= 50 ? "#16A34A" : pct >= 20 ? "#D97706" : "#DC2626";
+          $("#battViz").innerHTML = ring(pct, col);
+          $("#battVolt").textContent =
+            (s.battery.mv / 1000).toFixed(2).replace(".", ",") + " V";
+          $("#battNote").textContent =
+            pct >= 50
+              ? "Niveau correct"
+              : pct >= 20
+                ? "Niveau moyen"
+                : "Niveau faible : branchez le chargeur";
+          setChip(
+            "#chipBat",
+            pct >= 50 ? "ok" : pct >= 20 ? "warn" : "bad",
+            "battery",
+            pct + " %",
+            "Batterie " + pct + " %",
+          );
+
+          // Réseau
+          var early =
+            ["modem_start", "modem_init", "network", "internet"].indexOf(
+              s.state,
+            ) >= 0;
+          var cls = s.internet ? "ok" : early ? "warn" : "bad";
+          var label = s.internet
+            ? "Connecté à Internet"
+            : early
+              ? "Connexion en cours…"
+              : "Pas d'accès Internet";
+          var netIcon = $("#netIcon");
+          netIcon.className.baseVal = "ic network-icon " + cls;
+          netIcon
+            .querySelector("use")
+            .setAttribute(
+              "href",
+              s.internet || early ? "#i-network" : "#i-network-off",
+            );
+          var pill = $("#netPill");
+          pill.className = "pill big " + cls;
+          pill.innerHTML = "";
+          pill.append(label);
+          pill.setAttribute("aria-label", label);
+          setChip(
+            "#chipNet",
+            cls,
+            s.internet || early ? "wifi" : "wifi-off",
+            s.internet
+              ? "Internet connecté"
+              : early
+                ? "Connexion…"
+                : "Hors ligne",
+            label,
+          );
+          var paused =
+            s.internet &&
+            !s.mqtt &&
+            (s.state === "mqtt_init" || s.state === "mqtt_connect");
+          $("#netMqtt").textContent = s.mqtt
+            ? "Connecté"
+            : paused
+              ? "En pause (mode secours)"
+              : "Déconnecté";
+          $("#netState").textContent = STATE[s.state] || s.state;
+
+          // Mémoire
+          $("#fsBar i").style.width = s.fs.pct + "%";
+          $("#fsBar").setAttribute("aria-valuenow", s.fs.pct);
+          $("#fsBar i").style.background =
+            s.fs.pct >= 90
+              ? "var(--danger)"
+              : s.fs.pct >= 70
+                ? "var(--warning)"
+                : "var(--primary)";
+          $("#fsTxt").textContent =
+            s.fs.pct + " %  (" + s.fs.usedKB + " / " + s.fs.totalKB + " Ko)";
+          $("#badgeCnt").textContent = s.badges + " / " + s.badgeMax;
+
+          // Synchronisation de l'heure
+          $("#autoSw").checked = !!s.autoTime;
+          var sy = s.sync,
+            info;
+          if (sy.state === "pending") info = "Synchronisation en cours…";
+          else if (sy.state === "none")
+            info = "Aucune synchronisation depuis le démarrage.";
+          else {
+            var ago =
+              sy.ageSec < 60
+                ? "à l’instant"
+                : sy.ageSec < 3600
+                  ? "il y a " + Math.round(sy.ageSec / 60) + " min"
+                  : "il y a " + Math.round(sy.ageSec / 3600) + " h";
+            info =
+              (sy.kind === "manual"
+                ? "Réglage manuel "
+                : "Réseau mobile : " +
+                  (sy.state === "ok" ? "réussie " : "échec ")) + ago;
+          }
+          $("#syncInfo").textContent = info;
+          var btn = $("#syncNow"),
+            pending = sy.state === "pending";
+          btn.disabled = !pending && !s.internet;
+          btn.classList.toggle("wait", pending);
+          var syncIcon = $(".sync-icon", btn);
+          syncIcon.replaceChildren(
+            pending ? el("span", { class: "spin" }) : ico("refresh"),
+          );
+          $(".sync-label", btn).textContent = pending
+            ? "Synchronisation…"
+            : "Synchroniser maintenant";
+          $("#syncHint").textContent = s.internet
+            ? "Le boîtier se déconnecte brièvement du serveur pendant la synchronisation."
+            : "Pas d'accès Internet : synchronisation impossible pour le moment.";
+
+          // Dernier badge présenté
+          var lb = $("#lastBox");
+          lb.hidden = !s.lastUid;
+          if (s.lastUid) {
+            $("#lastUid").textContent = s.lastUid;
+            var ag =
+              s.lastAgeSec < 60
+                ? s.lastAgeSec + " s"
+                : Math.round(s.lastAgeSec / 60) + " min";
+            var tag = $("#lastTag");
+            tag.className = "pill " + (s.lastKnown ? "ok" : "warn");
+            tag.textContent =
+              (s.lastKnown ? "Autorisé" : "Inconnu") + " · il y a " + ag;
+            $("#useLast").hidden = !!s.lastKnown;
+          }
+
+          banners(s);
+          tickClock();
+          schedulePoll();
+        }
+
+        function banners(s) {
+          var b = $("#banners");
+          b.innerHTML = "";
+          if (!S.online)
+            b.append(
+              el(
+                "div",
+                { class: "banner bad" },
+                "Connexion perdue avec le boîtier. Nouvelle tentative…",
+              ),
+            );
+          if (s.defaultPwd)
+            b.append(
+              el(
+                "div",
+                { class: "banner warn" },
+                el("span", {
+                  text: "Le mot de passe par défaut est toujours utilisé. Changez-le.",
+                }),
+                el("button", {
+                  class: "btn sm sec",
+                  text: "Changer",
+                  onclick: function () {
+                    go("account");
+                  },
+                }),
+              ),
+            );
+          if (!s.rtcValid)
+            b.append(
+              el(
+                "div",
+                { class: "banner bad" },
+                el("span", {
+                  text: "L'horloge n'est pas réglée : les passages seront horodatés 1970.",
+                }),
+                el("button", {
+                  class: "btn sm sec",
+                  text: "Régler l'heure",
+                  onclick: function () {
+                    go("time");
+                  },
+                }),
+              ),
+            );
+          if (s.battery.pct < 20)
+            b.append(
+              el(
+                "div",
+                { class: "banner bad" },
+                "Batterie faible (" +
+                  s.battery.pct +
+                  " %). Branchez le chargeur.",
+              ),
+            );
+        }
+
+        /* ---------- Rafraîchissement ---------- */
+        function showStopped() {
+          S.stopped = true;
+          $("#stopped").hidden = false;
+        }
+        function refreshStatus() {
+          return api("/api/status?poll=1")
+            .then(function (s) {
+              S.online = true;
+              S.fails = 0;
+              applyStatus(s);
+            })
+            .catch(function (e) {
+              if (e.code !== "network") return;
+              S.online = false;
+              S.fails++;
+              // Le boîtier ne répond plus alors que l'arrêt automatique est proche (ou
+              // après plusieurs échecs) : le point d'accès Wi-Fi vient de se couper.
+              var left = S.idle - (performance.now() - S.idleAt) / 1000;
+              if (S.fails >= 6 || (S.fails >= 2 && left <= 30)) showStopped();
+              else if (S.status) banners(S.status);
+              schedulePoll();
+            });
+        }
+        function schedulePoll() {
+          clearTimeout(S.polling);
+          var pending = S.status && S.status.sync.state === "pending";
+          var every = !S.online
+            ? 4000
+            : pending
+              ? 2000
+              : S.view === "badges"
+                ? 3000
+                : 10000;
+          S.polling = setTimeout(refreshStatus, every);
+        }
+
+        function loadStats() {
+          return api("/api/stats")
+            .then(function (st) {
+              S.stats = st;
+              var parts = [
+                { n: st.sent, color: "#16A34A", t: "Envoyés" },
+                { n: st.pending, color: "#D97706", t: "En attente" },
+                { n: st.failed, color: "#DC2626", t: "Échecs" },
+              ];
+              $("#donut").innerHTML = donut(parts, st.total);
+              var lg = $("#legend");
+              lg.innerHTML = "";
+              parts.forEach(function (p) {
+                lg.append(
+                  el(
+                    "div",
+                    null,
+                    el("i", { style: "background:" + p.color }),
+                    p.t,
+                    el("b", { text: p.n }),
+                  ),
+                );
+              });
+              if (st.unknownTime)
+                lg.append(
+                  el(
+                    "div",
+                    { class: "muted" },
+                    st.unknownTime + " passage(s) sans heure valide",
+                  ),
+                );
+              $("#bars").innerHTML = bars(st.days);
+              $("#logCnt").textContent = st.total;
+            })
+            .catch(fail);
+        }
+
+        /* ---------- Navigation ---------- */
+        var VIEWS = [
+          ["overview", "Aperçu", "grid"],
+          ["badges", "Badges", "badge"],
+          ["logs", "Journal", "list"],
+          ["time", "Heure", "clock"],
+          ["account", "Compte", "shield"],
+        ];
+        function buildNav() {
+          VIEWS.forEach(function (v) {
+            [
+              [".nav", "side"],
+              [".tabbar", "tab"],
+            ].forEach(function (t) {
+              var b = el(
+                "button",
+                {
+                  "data-view": v[0],
+                  onclick: function () {
+                    go(v[0]);
+                  },
+                },
+                ico(v[2]),
+                t[1] === "side" ? v[1] : el("span", { text: v[1] }),
+              );
+              $(t[0]).append(b);
+            });
+          });
+        }
+        function go(view) {
+          if (location.hash !== "#" + view) location.hash = view;
+          else show(view);
+        }
+        function show(view) {
+          if (
+            !VIEWS.some(function (v) {
+              return v[0] === view;
+            })
+          )
+            view = "overview";
+          S.view = view;
+          $$(".view").forEach(function (s) {
+            s.hidden = s.id !== "v-" + view;
+          });
+          $$("[data-view]").forEach(function (b) {
+            if (b.dataset.view === view) b.setAttribute("aria-current", "page");
+            else b.removeAttribute("aria-current");
+          });
+          $("#title").textContent = VIEWS.filter(function (v) {
+            return v[0] === view;
+          })[0][1];
+          document.title = $("#title").textContent + " — Pointeuse";
+          window.scrollTo(0, 0);
+          if (view === "overview") loadStats();
+          if (view === "badges") loadBadges();
+          if (view === "logs") loadLogs(true);
+          schedulePoll();
+        }
+
+        /* ---------- Fenêtres modales ---------- */
+        function openModal(title, desc, content, actions) {
+          var m = $("#modal"),
+            prev = document.activeElement;
+          function close() {
+            m.hidden = true;
+            m.innerHTML = "";
+            document.removeEventListener("keydown", esc);
+            if (prev && prev.focus) prev.focus();
+          }
+          function esc(e) {
+            if (e.key === "Escape") close();
+          }
+          var row = el("div", { class: "btnrow" });
+          actions.forEach(function (a) {
+            row.append(
+              el("button", {
+                class: "btn " + (a.cls || ""),
+                type: "button",
+                text: a.label,
+                onclick: function () {
+                  a.run(close);
+                },
+              }),
+            );
+          });
+          m.innerHTML = "";
+          m.append(
+            el(
+              "div",
+              {
+                class: "sheet",
+                role: "dialog",
+                "aria-modal": "true",
+                "aria-label": title,
+              },
+              el("h3", { text: title }),
+              desc ? el("p", { text: desc }) : null,
+              content,
+              row,
+            ),
+          );
+          m.hidden = false;
+          m.onclick = function (e) {
+            if (e.target === m) close();
+          };
+          document.addEventListener("keydown", esc);
+          var first = m.querySelector("input,button.btn");
+          if (first) first.focus();
+          return close;
+        }
+
+        /* ---------- Badges ---------- */
+        function loadBadges() {
+          return api("/api/badges")
+            .then(function (j) {
+              S.badges = j.badges;
+              renderBadges();
+            })
+            .catch(fail);
+        }
+        function renderBadges() {
+          var q = S.q.trim().toUpperCase(),
+            list = $("#badgeList");
+          list.innerHTML = "";
+          $("#badgeTitle").textContent =
+            "Badges autorisés (" + S.badges.length + ")";
+          var rows = S.badges.filter(function (b) {
+            return !q || b.uid.indexOf(q) >= 0 || b.agent.indexOf(q) >= 0;
+          });
+          if (!rows.length) {
+            list.append(
+              el(
+                "div",
+                { class: "empty" },
+                S.badges.length
+                  ? "Aucun résultat."
+                  : "Aucun badge enregistré : aucun passage n’est accepté.",
+              ),
+            );
+            return;
+          }
+          rows.forEach(function (b) {
+            list.append(
+              el(
+                "div",
+                { class: "item" },
+                el("div", { class: "av", text: initials(b.agent) }),
+                el(
+                  "div",
+                  { class: "main" },
+                  el("b", { text: b.agent }),
+                  el("span", { class: "mono", text: b.uid }),
+                ),
+                el(
+                  "div",
+                  { class: "acts" },
+                  el(
+                    "button",
+                    {
+                      class: "btn out icon",
+                      "aria-label": "Modifier " + b.agent,
+                      onclick: function () {
+                        editBadge(b);
+                      },
+                    },
+                    ico("edit"),
+                  ),
+                  el(
+                    "button",
+                    {
+                      class: "btn danger out icon",
+                      "aria-label": "Supprimer " + b.agent,
+                      onclick: function () {
+                        deleteBadge(b);
+                      },
+                    },
+                    ico("trash"),
+                  ),
+                ),
+              ),
+            );
+          });
+        }
+        function initials(agent) {
+          var m = /^[A-Z_-]*?(\d+)$/.exec(agent);
+          return m ? m[1].slice(-3) : agent.slice(0, 2);
+        }
+        function editBadge(b) {
+          var pick = function () {
+            var f = this;
+            setTimeout(function () {
+              f.select();
+            }, 0);
+          };
+          var uid = el("input", {
+            class: "inp mono",
+            value: b.uid,
+            maxlength: 23,
+            autocapitalize: "characters",
+            spellcheck: "false",
+            "aria-label": "UID",
+            onfocus: pick,
+          });
+          var ag = el("input", {
+            class: "inp mono",
+            value: b.agent,
+            maxlength: 5,
+            autocapitalize: "characters",
+            spellcheck: "false",
+            "aria-label": "ID de l'agent",
+            onfocus: pick,
+          });
+          var body = el(
+            "div",
+            { class: "form" },
+            el(
+              "div",
+              null,
+              el("label", { class: "f", text: "UID du badge" }),
+              uid,
+            ),
+            el(
+              "div",
+              null,
+              el("label", { class: "f", text: "ID de l'agent" }),
+              ag,
+            ),
+          );
+          openModal("Modifier le badge", null, body, [
+            {
+              label: "Annuler",
+              cls: "out",
+              run: function (c) {
+                c();
+              },
+            },
+            {
+              label: "Enregistrer",
+              run: function (c) {
+                api("/api/badges/update", {
+                  method: "POST",
+                  body: {
+                    uid: b.uid,
+                    newUid: uid.value.trim(),
+                    agent: ag.value.trim(),
+                  },
+                })
+                  .then(function () {
+                    c();
+                    toast("Badge modifié.");
+                    loadBadges();
+                    refreshStatus();
+                  })
+                  .catch(fail);
+              },
+            },
+          ]);
+        }
+        function deleteBadge(b) {
+          openModal(
+            "Supprimer ce badge ?",
+            "L’agent " +
+              b.agent +
+              " (" +
+              b.uid +
+              ") n’aura plus accès à ce boîtier.",
+            null,
+            [
+              {
+                label: "Annuler",
+                cls: "out",
+                run: function (c) {
+                  c();
+                },
+              },
+              {
+                label: "Supprimer",
+                cls: "danger",
+                run: function (c) {
+                  api("/api/badges/delete", {
+                    method: "POST",
+                    body: { uid: b.uid },
+                  })
+                    .then(function () {
+                      c();
+                      toast("Badge supprimé.");
+                      loadBadges();
+                      refreshStatus();
+                    })
+                    .catch(fail);
+                },
+              },
+            ],
+          );
+        }
+
+        /* ---------- Logs ---------- */
+
+        var LST = {
+          0: ["warn", "En attente"],
+          1: ["ok", "Envoyé"],
+          2: ["bad", "Échec"],
+          "?": ["neutral", "Inconnu"],
+        };
+        function loadLogs(reset) {
+          if (reset) S.logs.rows = [];
+          return api("/api/logs?limit=25&offset=" + S.logs.rows.length)
+            .then(function (j) {
+              var seen = {};
+              S.logs.rows.forEach(function (r) {
+                seen[r.n] = 1;
+              });
+              j.rows.forEach(function (r) {
+                if (!seen[r.n]) S.logs.rows.push(r);
+              });
+              S.logs.total = j.total;
+              S.logs.more = j.more;
+              renderLogs();
+            })
+            .catch(fail);
+        }
+        function fmtLogTime(ts) {
+          var ms = parseIso(ts);
+          if (isNaN(ms) || ts.indexOf("1970") === 0) return "Heure inconnue";
+          var d = shifted(ms);
+          return (
+            pad(d.getUTCDate()) +
+            "/" +
+            pad(d.getUTCMonth() + 1) +
+            "/" +
+            d.getUTCFullYear() +
+            " " +
+            fmtTime(d)
+          );
+        }
+        function renderLogs() {
+          var f = S.logs.filter,
+            list = $("#logList");
+          list.innerHTML = "";
+          var rows = S.logs.rows.filter(function (r) {
+            return f === "all" || r.st === f;
+          });
+          $("#logCount").textContent =
+            S.logs.total +
+            " log(s) au total · " +
+            rows.length +
+            " affiché(s)" +
+            (f !== "all" ? " avec ce filtre" : "");
+          if (!rows.length)
+            list.append(
+              el(
+                "div",
+                { class: "empty" },
+                S.logs.total
+                  ? "Aucun log correspondant dans les entrées chargées."
+                  : "Aucun log enregistré.",
+              ),
+            );
+          rows.forEach(function (r) {
+            var st = LST[r.st] || LST["?"],
+              pill = el(
+                "span",
+                { class: "pill " + st[0] },
+                el("i", { class: "" }),
+                st[1],
+              );
+            list.append(
+              el(
+                "div",
+                { class: "item" },
+                el(
+                  "div",
+                  { class: "main" },
+                  el("b", { text: fmtLogTime(r.ts) }),
+                  el("span", { text: "Agent " + r.ag + " · " + r.cp }),
+                ),
+                pill,
+              ),
+            );
+          });
+          $("#moreLogs").hidden = !S.logs.more;
+        }
+        function clearLogs() {
+          openModal(
+            "Supprimer tous les logs ?",
+            "Les " +
+              S.logs.total +
+              " logs enregistrés seront effacés définitivement, y compris ceux qui n’ont pas encore été envoyés. Téléchargez-les d’abord si besoin.",
+            null,
+            [
+              {
+                label: "Annuler",
+                cls: "out",
+                run: function (c) {
+                  c();
+                },
+              },
+              {
+                label: "Tout supprimer",
+                cls: "danger",
+                run: function (c) {
+                  api("/api/logs/clear", {
+                    method: "POST",
+                    body: { confirm: "yes" },
+                  })
+                    .then(function () {
+                      c();
+                      toast("Logs supprimés.");
+                      loadLogs(true);
+                      refreshStatus();
+                    })
+                    .catch(fail);
+                },
+              },
+            ],
+          );
+        }
+
+        /* ---------- Heure : réglages ---------- */
+        function sendManual(utcMs) {
+          var iso = new Date(utcMs).toISOString().slice(0, 19);
+          return api("/api/time/manual", { method: "POST", body: { utc: iso } })
+            .then(function () {
+              toast("Heure réglée.");
+              refreshStatus();
+            })
+            .catch(fail);
+        }
+
+        /* ---------- Actions ---------- */
+        function logout() {
+          fetch("/logout", {
+            method: "POST",
+            credentials: "same-origin",
+          }).finally(function () {
+            location.href = "/";
+          });
+        }
+
+        function init() {
+          buildNav();
+          document.addEventListener("click", function (e) {
+            var t = e.target.closest("[data-act],[data-go]");
+            if (!t) return;
+            if (t.dataset.go) go(t.dataset.go);
+            else if (t.dataset.act === "logout") logout();
+            else if (t.dataset.act === "reload-stats") loadStats();
+            else if (t.dataset.act === "clear-logs") clearLogs();
+          });
+
+          $("#addForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            api("/api/badges/add", {
+              method: "POST",
+              body: {
+                uid: $("#addUid").value.trim(),
+                agent: $("#addAgent").value.trim(),
+              },
+            })
+              .then(function () {
+                toast("Badge ajouté.");
+                $("#addUid").value = "";
+                $("#addAgent").value = "";
+                loadBadges();
+                refreshStatus();
+              })
+              .catch(fail);
+          });
+          $("#useLast").addEventListener("click", function () {
+            $("#addUid").value = S.status.lastUid;
+            $("#addAgent").focus();
+          });
+          $("#badgeSearch").addEventListener("input", function (e) {
+            S.q = e.target.value;
+            renderBadges();
+          });
+
+          $("#logFilter").addEventListener("click", function (e) {
+            var b = e.target.closest("button[data-f]");
+            if (!b) return;
+            S.logs.filter = b.dataset.f;
+            $$("#logFilter button").forEach(function (x) {
+              x.setAttribute("aria-pressed", x === b ? "true" : "false");
+            });
+            renderLogs();
+          });
+          $("#moreLogs").addEventListener("click", function () {
+            loadLogs(false);
+          });
+
+          $("#autoSw").addEventListener("change", function (e) {
+            api("/api/time/mode", {
+              method: "POST",
+              body: { auto: e.target.checked ? "1" : "0" },
+            })
+              .then(function () {
+                toast(
+                  e.target.checked
+                    ? "Synchronisation automatique activée."
+                    : "Synchronisation automatique désactivée.",
+                  "info",
+                );
+              })
+              .catch(function (x) {
+                e.target.checked = !e.target.checked;
+                fail(x);
+              });
+          });
+          $("#syncNow").addEventListener("click", function () {
+            api("/api/time/auto", { method: "POST", body: {} })
+              .then(function () {
+                toast("Synchronisation lancée…", "info");
+                refreshStatus();
+              })
+              .catch(fail);
+          });
+          $("#setDevice").addEventListener("click", function () {
+            sendManual(Date.now());
+          });
+          $("#setManual").addEventListener("click", function () {
+            var v = $("#manualDt").value;
+            if (!v) {
+              toast("Saisissez une date et une heure.", "bad");
+              return;
+            }
+            var ms = parseIso(v.length === 16 ? v + ":00" : v);
+            if (isNaN(ms)) {
+              toast("Date ou heure invalide.", "bad");
+              return;
+            }
+            sendManual(ms - S.tz * 60000);
+          });
+
+          $("#pwForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var cur = $("#pwCur").value,
+              nw = $("#pwNew").value,
+              cf = $("#pwCfm").value;
+            if (nw.length < 8) {
+              toast(
+                "Le nouveau mot de passe doit contenir au moins 8 caractères.",
+                "bad",
+              );
+              return;
+            }
+            if (nw !== cf) {
+              toast("Les deux mots de passe ne sont pas identiques.", "bad");
+              return;
+            }
+            api("/api/password", {
+              method: "POST",
+              body: { current: cur, new: nw },
+            })
+              .then(function () {
+                toast("Mot de passe modifié. Reconnexion…");
+                setTimeout(function () {
+                  location.href = "/";
+                }, 1500);
+              })
+              .catch(fail);
+          });
+
+          $("#deviceIdForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            api("/api/device-id", {
+              method: "POST",
+              body: { deviceId: $("#deviceId").value.trim() },
+            })
+              .then(function (result) {
+                if (!result.changed) {
+                  toast("Cet identifiant est déjà utilisé.", "info");
+                  return;
+                }
+                toast(
+                  "Identifiant enregistré. Relancez le mode secours et reconnectez-vous après le redémarrage.",
+                  "info",
+                );
+              })
+              .catch(fail);
+          });
+          $("#deviceId").addEventListener("input", function (e) {
+            e.target.value = e.target.value.toUpperCase();
+          });
+
+          window.addEventListener("hashchange", function () {
+            show(location.hash.slice(1));
+          });
+          setInterval(tickClock, 1000);
+
+          refreshStatus().then(function () {
+            show(location.hash.slice(1) || "overview");
+          });
+        }
+        init();
+      })();
+    </script>
+  </body>
+</html>

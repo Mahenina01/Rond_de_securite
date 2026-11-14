@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <mbedtls/md5.h>
 
+#include "config_store.h"
 #include "system_config.h"
 #include "hal/sim_manager.h"
 #include "hal/modem_check.h"
@@ -27,6 +28,7 @@ static HardwareSerial *mqttSerial = nullptr;
 
 static char topicData[128];
 static char topicAck[128];
+static char mqttClientId[DEVICE_ID_MAX_LEN + sizeof("RONDE-")];
 
 static bool serviceStarted = false;
 static bool clientAcquired = false;
@@ -57,13 +59,13 @@ static size_t rxPayloadLength = 0;
 
 static bool buildEventUuid(const LogEntry &entry, char *out, size_t outSize)
 {
-    char key[sizeof(DEVICE_ID) + 10 + LOG_FIELD_TIMESTAMP_LEN +
+    char key[DEVICE_ID_MAX_LEN + 10 + LOG_FIELD_TIMESTAMP_LEN +
              LOG_FIELD_AGENT_LEN + LOG_FIELD_CHECKPOINT_LEN + 5];
     int keyLength = snprintf(
         key,
         sizeof(key),
         "%s:%lu:%s,%s,%s",
-        DEVICE_ID,
+        config_device_id(),
         static_cast<unsigned long>(entry.line_index),
         entry.timestamp_iso,
         entry.id_agent,
@@ -679,7 +681,7 @@ static bool acquireMQTTClient()
         sizeof(command),
         "AT+CMQTTACCQ=%d,\"%s\",1",
         MQTT_CLIENT_INDEX,
-        MQTT_CLIENT_ID);
+        mqttClientId);
 
     if (!sendAT(command, 10000))
         return false;
@@ -698,13 +700,19 @@ void mqtt_init()
         topicData,
         sizeof(topicData),
         MQTT_TOPIC_DATA_FMT,
-        DEVICE_ID);
+        config_device_id());
 
     snprintf(
         topicAck,
         sizeof(topicAck),
         MQTT_TOPIC_ACK_FMT,
-        DEVICE_ID);
+        config_device_id());
+
+    snprintf(
+        mqttClientId,
+        sizeof(mqttClientId),
+        MQTT_CLIENT_ID_FMT,
+        config_device_id());
 
     serviceStarted = false;
     clientAcquired = false;
@@ -873,7 +881,7 @@ bool mqtt_publish_log(const LogEntry &entry)
     JsonDocument doc;
 
     doc["id"] = eventUuid;
-    doc["device_id"] = DEVICE_ID;
+    doc["device_id"] = config_device_id();
     doc["timestamp"] = entry.timestamp_iso;
     doc["id_agent"] = entry.id_agent;
     doc["id_checkpoint"] = entry.id_checkpoint;
